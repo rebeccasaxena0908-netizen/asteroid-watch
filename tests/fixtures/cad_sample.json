@@ -1,0 +1,1 @@
+{"signature":{"source":"NASA/JPL SBDB Close Approach Data API","version":"1.5"},"count":1,"fields":["des","orbit_id","jd","cd","dist","dist_min","dist_max","v_rel","v_inf","t_sigma_f","h"],"data":[["465824","73","2461295.436258110","2026-Sep-11 22:28","0.0518549218121999","0.0518545458685423","0.0518552977559105","11.5928317092338","11.5883985238941","< 00:01","21.69"]]}

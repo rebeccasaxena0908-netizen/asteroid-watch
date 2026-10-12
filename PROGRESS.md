@@ -5,8 +5,8 @@
 | 1. Setup | ✅ Done (2026-10-12) |
 | 2. Extract | ✅ Done (2026-10-12) |
 | 3. Transform and load | ✅ Done (2026-10-12) |
-| 4. Quality checks and scheduling (+ JPL cross-check) | ⏳ Next |
-| 5. PHP JSON API | |
+| 4. Quality checks and scheduling (+ JPL cross-check) | ✅ Done (2026-10-12) |
+| 5. PHP JSON API | ⏳ Next |
 | 6. Animated dashboard | |
 | 7. Docs and submission material | |
 
@@ -62,3 +62,16 @@
 - Orbital data now 605 rows (run 4 added 100).
 - `scheduler/com.asteroidwatch.pipeline.plist`: launchd template, daily 09:00 IST, yesterday..+7 days, `--run-type daily`. Install/uninstall: `make schedule-install` / `make schedule-uninstall` (see `scheduler/README.md`). Checked with `plutil -lint` and a dry run under an empty environment (`env -i`). **Not installed yet: the user runs it.**
 - Tests: 59 passing.
+
+### 4b. Extra quality check: same asteroid under two IDs
+- Found while preparing the JPL check: NeoWs lists some asteroids under both an old provisional id and a newer numbered id, e.g. `3430309` "(2008 TC4)" and `2614134` "614134 (2008 TC4)", with identical approaches. UNIQUE(neo_id, epoch_ms) can't catch this.
+- New table-level check `no_same_object_under_two_ids` (same designation + epoch under 2+ neo_ids). Current data: **FAIL, 57 approaches stored twice (25 of them hazardous)**.
+- Detection only. No rows changed. **Open decision for the user:** dedupe in transform and clean the existing rows?
+
+### 4c. JPL cross-check (`pipeline/jpl_crosscheck.py`, `make crosscheck`)
+- Compares a reproducible random sample (seed 42) of stored approaches with the JPL CAD API by SPK-ID (= neo_id), and compares per-day counts within 0.5 AU on the 4 feed-missing days + 10 random days. Saved as a `crosscheck` run (run 6, 64 calls) in pipeline_runs/quality_results; report in `docs/jpl_crosscheck.md`.
+- **Values:** 47 of 48 found approaches match (median diff 0.0000% for distance, velocity and time). Outlier: (2019 NG2) 0.57% distance, 21 min (possibly a newer orbit solution; not verified).
+- **Objects:** 2 of 50 not found in JPL by their (provisional) SPK-ID: (2015 FV118), (2018 WG2). (2025 US6) is also not found.
+- **Coverage:** on 14 sampled days NeoWs gave 50 approaches within 0.5 AU vs JPL's 217 (~23%). On the 4 feed-missing days JPL lists 10, 19, 13 and 11 approaches, so **those are real gaps in NeoWs, not empty days.**
+- Gotcha: CAD with date-min = date-max returns 0 rows; use [day, day+1).
+- Tests: 68 passing (with a real CAD response fixture).

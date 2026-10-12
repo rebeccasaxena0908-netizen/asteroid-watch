@@ -1,7 +1,7 @@
 """Data quality checks, run after every load and saved to quality_results.
 
-Checks look at this run's batch (what was extracted and transformed), except the duplicate
-check, which looks at the whole close_approaches table. A failed check does not stop the
+Checks look at this run's batch (what was extracted and transformed), except the two duplicate
+checks, which look at the whole close_approaches table. A failed check does not stop the
 run: the data is still loaded, and the failure is recorded so it shows on the dashboard.
 """
 from dataclasses import dataclass
@@ -52,6 +52,22 @@ def check_no_duplicates(cur) -> CheckResult:
                        f"{dupes} duplicated (neo_id, epoch_ms) pairs in close_approaches")
 
 
+# Designation = the text in the last brackets of the name: "614134 (2008 TC4)" -> "2008 TC4".
+DESIGNATION_SQL = "SUBSTRING_INDEX(SUBSTRING_INDEX(a.name, '(', -1), ')', 1)"
+
+
+def check_same_object_under_two_ids(cur) -> CheckResult:
+    """NeoWs sometimes lists one asteroid under its old provisional id AND its newer numbered id
+    (e.g. 3430309 "(2008 TC4)" and 2614134 "614134 (2008 TC4)"), with identical approaches.
+    UNIQUE(neo_id, epoch_ms) can't catch that, so look for one designation + epoch under 2+ ids."""
+    cur.execute(f"SELECT COUNT(*) AS n FROM (SELECT {DESIGNATION_SQL} AS designation, ca.epoch_ms "
+                "FROM close_approaches ca JOIN asteroids a ON a.neo_id = ca.neo_id "
+                "GROUP BY designation, ca.epoch_ms HAVING COUNT(DISTINCT ca.neo_id) > 1) d")
+    events = cur.fetchone()["n"]
+    return CheckResult("no_same_object_under_two_ids", events == 0,
+                       f"{events} approaches stored under two different neo_ids for the same designation")
+
+
 def check_expected_days(extracted: ExtractResult) -> CheckResult:
     expected = {(extracted.start + timedelta(days=i)).isoformat() for i in range(extracted.days_requested)}
     missing = sorted(expected - extracted.dates_fetched)
@@ -78,6 +94,7 @@ def run_checks(extracted: ExtractResult, clean: TransformResult, cur=None) -> li
     ]
     if cur is not None:
         results.append(check_no_duplicates(cur))
+        results.append(check_same_object_under_two_ids(cur))
     return results
 
 

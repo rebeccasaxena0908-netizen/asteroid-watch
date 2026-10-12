@@ -4,7 +4,7 @@ SITE    := $(HTDOCS)/asteroid-watch
 AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 
-.PHONY: help install setup-db check-db test extract run backfill deploy undeploy \
+.PHONY: help install setup-db check-db test extract run backfill crosscheck deploy undeploy \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "make extract    download last 7 + next 7 days of NeoWs data to data/raw/ (no DB)"
 	@echo "make run        full pipeline: yesterday .. +7 days, logged in pipeline_runs"
 	@echo "make backfill   full pipeline: last 365 .. +30 days (~57 calls + 500 orbit lookups)"
+	@echo "make crosscheck compare a sample with NASA JPL CAD; writes docs/jpl_crosscheck.md"
 	@echo "make deploy     copy dashboard/ to $(SITE)"
 	@echo "make undeploy   remove $(SITE)"
 	@echo "make schedule-install / schedule-uninstall / schedule-status / schedule-run-now"
@@ -42,6 +43,9 @@ run:
 
 backfill:
 	$(PYTHON) -m pipeline.run_pipeline --backfill-days 365 --forward-days 30 --orbital-limit 500 --run-type backfill
+
+crosscheck:
+	$(PYTHON) -m pipeline.jpl_crosscheck --sample 50 --days 10
 
 # Copy, not symlink: Apache runs as user 'daemon', which cannot read inside
 # /Users/<you> (home folder is drwxr-x---), so a symlink gives HTTP 403.

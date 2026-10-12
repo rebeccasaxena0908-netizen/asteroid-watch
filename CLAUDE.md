@@ -21,10 +21,13 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - PHP 8.2.4 with pdo_mysql. Python 3.14 in `.venv`. Mac timezone is Asia/Kolkata (IST).
 
 ## Commands
-`make install | setup-db | check-db | test | extract | run | backfill | deploy | undeploy`
+`make install | setup-db | check-db | test | extract | run | backfill | crosscheck | deploy | undeploy`
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
 - Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.
 - Orbital lookups are capped per run (backfill finds ~1,700 asteroids, above the hourly limit if fetched all at once).
-- NeoWs feed omits some dates entirely (4 of 396 in the backfill).
+- NeoWs feed omits some dates entirely (4 of 396 in the backfill); JPL CAD shows approaches on them, so they're gaps.
+- NeoWs lists some asteroids under two neo_ids (old provisional 3xxxxxx + numbered 2xxxxxx); see quality check no_same_object_under_two_ids.
+- NeoWs is a subset of JPL CAD (~23% of approaches within 0.5 AU on sampled days).
+- JPL CAD: query by `spk=<neo_id>`; date-min == date-max returns nothing.

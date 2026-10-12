@@ -65,7 +65,9 @@ class NeoWsClient:
         return text.replace(self.api_key, "REDACTED") if self.api_key else text
 
     def get_json(self, path: str, params: dict | None = None) -> dict:
-        params = {**(params or {}), "api_key": self.api_key}
+        params = dict(params or {})
+        if self.api_key:  # JPL APIs need no key
+            params["api_key"] = self.api_key
         for attempt in range(self.max_retries + 1):
             self.api_calls += 1
             wait = self.backoff_seconds * (2 ** attempt)

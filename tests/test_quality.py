@@ -3,7 +3,8 @@ from datetime import date
 from pathlib import Path
 
 from pipeline.extract import ExtractResult
-from pipeline.quality import check_no_duplicates, run_checks, save_results
+from pipeline.quality import (check_no_duplicates, check_same_object_under_two_ids, run_checks,
+                              save_results)
 from pipeline.transform import transform_feeds
 
 FIXTURE = Path(__file__).parent / "fixtures" / "feed_sample.json"
@@ -115,6 +116,14 @@ def test_duplicate_check_uses_database_count():
     assert check_no_duplicates(FakeCursor({"n": 0})).passed
     failed = check_no_duplicates(FakeCursor({"n": 3}))
     assert not failed.passed and "3 duplicated" in failed.details
+
+
+def test_same_object_check_uses_designation_and_epoch():
+    cur = FakeCursor({"n": 57})
+    check = check_same_object_under_two_ids(cur)
+    assert not check.passed and "57 approaches" in check.details
+    assert "GROUP BY designation, ca.epoch_ms" in cur.sql
+    assert check_same_object_under_two_ids(FakeCursor({"n": 0})).passed
 
 
 def test_save_results_returns_failure_count():
