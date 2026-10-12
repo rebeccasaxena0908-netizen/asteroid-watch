@@ -11,7 +11,7 @@ api_run(function () {
     $runs = query_all(
         'SELECT run_id, run_type, status, started_at, finished_at,
                 TIMESTAMPDIFF(SECOND, started_at, finished_at) AS duration_seconds,
-                date_range_start, date_range_end, api_calls, records_extracted,
+                date_range_start, date_range_end, api_calls, records_extracted, records_after_dedupe,
                 rows_inserted, rows_updated, quality_failures, error_message
          FROM pipeline_runs ORDER BY run_id DESC LIMIT :limit', [':limit' => $limit]);
     if (!$runs) {

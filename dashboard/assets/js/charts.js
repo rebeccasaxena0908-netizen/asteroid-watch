@@ -1,4 +1,4 @@
-// The four trend charts (Chart.js 4, loaded as a global from jsdelivr).
+// The four trend charts (Chart.js 4.4.1, vendored in assets/vendor/chartjs, loaded as a global).
 // Colours: series-1 = not hazardous, series-2 = potentially hazardous (validated pair).
 // Marks follow fixed specs: 4px rounded bar ends, 2px surface gaps, >=8px dots with a surface ring.
 
@@ -220,6 +220,16 @@ function renderSizes(trends) {
   const totalHaz = bins.reduce((s, b) => s + b.hazardous, 0);
   const total = bins.reduce((s, b) => s + b.count, 0);
   legend('size-legend', [['s1', 'Not hazardous', fmtInt(total - totalHaz)], ['s2', 'Potentially hazardous', fmtInt(totalHaz)]]);
+  // This chart counts asteroids, the others count approaches; explain any difference.
+  const c = trends.counts;
+  const notes = [];
+  if (c.approaches > c.asteroids) {
+    const n = c.approaches - c.asteroids;
+    notes.push(`${fmtInt(c.asteroids)} asteroids make ${fmtInt(c.approaches)} approaches (${fmtInt(n)} extra pass${n > 1 ? 'es' : ''} by asteroids seen more than once)`);
+  }
+  if (c.asteroids_without_size > 0) notes.push(`${fmtInt(c.asteroids_without_size)} without a size estimate`);
+  document.getElementById('size-sub').textContent =
+    'Asteroids by maximum estimated diameter' + (notes.length ? ` · ${notes.join(' · ')}` : '');
   replace('chart-size', {
     type: 'bar',
     data: {
@@ -301,7 +311,7 @@ export function renderCharts(trends, range, today, onPick) {
   if (!window.Chart) {
     for (const id of ['chart-daily', 'chart-donut', 'chart-size', 'chart-scatter']) {
       document.getElementById(id).parentElement.replaceChildren(
-        el('div', { class: 'empty', text: 'Charts need Chart.js from cdn.jsdelivr.net (no internet?). The data tables below still work.' }));
+        el('div', { class: 'empty', text: 'Charts could not start (Chart.js failed to load). The data tables below still work.' }));
     }
   }
   if (window.Chart && !renderCharts.ready) {

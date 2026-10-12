@@ -12,7 +12,7 @@ from dataclasses import replace
 from pipeline.config import PROJECT_ROOT, load_settings
 from pipeline.db import check_identifier, connect, run_sql_file
 
-SQL_FILES = [PROJECT_ROOT / "sql" / "01_schema.sql", PROJECT_ROOT / "sql" / "02_views.sql"]
+SQL_FILES = [PROJECT_ROOT / "sql" / f for f in ("01_schema.sql", "02_views.sql", "03_migrations.sql")]
 
 # The app user gets only what the pipeline and dashboard need, and only on this database.
 # DROP is required by MariaDB for CREATE OR REPLACE VIEW.

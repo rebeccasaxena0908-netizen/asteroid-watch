@@ -137,6 +137,11 @@ export function runStatus(run) {
   if (!run) return { cls: 'info', icon: 'circleAlert', label: 'No runs yet' };
   if (run.status === 'failed') return { cls: 'critical', icon: 'circleX', label: 'Failed' };
   if (run.status === 'running') return { cls: 'info', icon: 'spinner', label: 'Running' };
+  if (run.run_type === 'crosscheck') {
+    // A cross-check reports findings about NASA's data (e.g. coverage gaps); they are not errors.
+    const n = run.quality_failures;
+    return { cls: 'info', icon: 'circleCheck', label: n ? `Completed · ${n} finding${n > 1 ? 's' : ''}` : 'Completed · all match' };
+  }
   if (run.quality_failures > 0) {
     const n = run.quality_failures;
     return { cls: 'warning', icon: 'circleAlert', label: `Success · ${n} check${n > 1 ? 's' : ''} failed` };

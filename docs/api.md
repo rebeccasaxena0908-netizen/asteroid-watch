@@ -12,8 +12,8 @@ Base URL: `http://localhost/asteroid-watch/api/`. These are PHP files served by 
 | `summary.php` | none | `totals` (asteroids, approaches, hazardous counts, orbits, date range), `this_week` (today + 6 days), `closest_this_week`, `closest_upcoming`, `closest_on_record`, `largest`, `last_run` (latest ETL run with its quality failure count) |
 | `approaches.php` | `start`, `end` (YYYY-MM-DD); `hazardous` = all/true/false; `q` (name search, ≤ 50 chars, `%`/`_` matched literally); `sort` = date/distance/velocity/size/name; `order` = asc/desc; `page` (1–10000); `per_page` (1–100, default 25) | `items`, `page`, `per_page`, `total`, `total_pages`, `filters` |
 | `asteroid.php` | `id` (numeric neo_id, required) | `asteroid`, `orbit` (or null if not fetched yet), `approaches`, `old_ids`, `resolved_from` (set when an old provisional ID was requested; see `duplicate_ids.md`) |
-| `trends.php` | `start`, `end` (optional) | `daily` (counts per day), `size_histogram` (8 bins by max diameter), `velocity_vs_distance` (one point per approach), `hazardous_split` |
-| `runs.php` | `limit` (1–50, default 10) | `runs`, newest first, each with its `quality` check results (ETL and cross-check runs) |
+| `trends.php` | `start`, `end` (optional) | `daily` (counts per day), `size_histogram` (8 bins by max diameter, counts asteroids), `counts` (approaches, asteroids, asteroids without a size estimate), `velocity_vs_distance` (one point per approach), `hazardous_split` |
+| `runs.php` | `limit` (1–50, default 10) | `runs`, newest first, each with `records_extracted`, `records_after_dedupe` (null for runs before it existed) and its `quality` check results (ETL and cross-check runs) |
 
 ## Configuration
 

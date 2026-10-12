@@ -439,6 +439,9 @@ tbody tr.clickable:hover { background: rgba(143, 216, 255, 0.06); }
 .checks li svg { width: 16px; height: 16px; margin-top: 3px; }
 .checks li.pass svg { color: var(--good); }
 .checks li.fail svg { color: var(--warning); }
+.checks li.finding svg { color: var(--accent); }
+.checks .badge { margin-left: 4px; font-size: 0.68rem; padding: 1px 7px; }
+.dedupe-note { margin-top: 12px; font-size: 0.82rem; color: var(--text-secondary); }
 .checks code { font-size: 0.82rem; color: var(--text-primary); }
 .checks .d { display: block; color: var(--text-secondary); font-size: 0.8rem; }
 

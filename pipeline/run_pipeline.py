@@ -51,9 +51,10 @@ def finish_run(conn, run_id: int, status: str, stats: dict, error: str | None = 
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE pipeline_runs SET finished_at = NOW(), status = %s, api_calls = %s, "
-            "records_extracted = %s, rows_inserted = %s, rows_updated = %s, quality_failures = %s, "
+            "records_extracted = %s, records_after_dedupe = %s, rows_inserted = %s, rows_updated = %s, "
+            "quality_failures = %s, "
             "error_message = %s WHERE run_id = %s",
-            (status, stats.get("api_calls", 0), stats.get("records_extracted", 0),
+            (status, stats.get("api_calls", 0), stats.get("records_extracted", 0), stats.get("records_after_dedupe"),
              stats.get("rows_inserted", 0), stats.get("rows_updated", 0),
              stats.get("quality_failures", 0), error, run_id))
     conn.commit()
@@ -95,6 +96,7 @@ def run(args, settings=None, today: date | None = None) -> dict:
         extracted = extract_feed(client, start, end)
         clean = transform_feeds(extracted.payloads, load_known_aliases(conn))
         stats["records_extracted"] = clean.records_seen
+        stats["records_after_dedupe"] = len(clean.approaches)
         log.info("Transformed %d records into %d asteroids and %d approaches "
                  "(%d duplicates removed, %d old-id copies removed, %d old-id approaches moved "
                  "to numbered ids, %d rejected)",

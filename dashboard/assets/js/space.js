@@ -1,7 +1,7 @@
 // Full-screen Three.js background: stars, nebula, Earth, and this week's real close approaches.
 //
 // - Earth: a procedural shader planet that cross-fades to the local NASA Blue Marble texture
-//   once it loads (works offline; the texture lives in assets/img/).
+//   once it loads (works offline; the texture lives in assets/img/, three.js in assets/vendor/).
 // - Asteroids: one rock per upcoming approach (data from the API). Orbit radius is log-scaled
 //   by miss distance, size by diameter, speed by relative velocity. Not to scale.
 // - Mouse/touch parallax, drag to rotate, hover for a label, click/tap to open the asteroid.
@@ -245,7 +245,7 @@ function orbitRadius(ld) {
 
 // ---------------------------------------------------------------- scene
 
-export function startSpace({ canvas, stage, label, reducedMotion, onReady }) {
+export function startSpace({ canvas, stage, label, textColumn, reducedMotion, onReady }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x03050c, 1);
   const small = Math.min(window.innerWidth, window.innerHeight) < 700;
@@ -435,8 +435,24 @@ export function startSpace({ canvas, stage, label, reducedMotion, onReady }) {
     starMat.uniforms.uPixelRatio.value = pixelRatio;
     glowMat.uniforms.uPixelRatio.value = pixelRatio;
     const aspect = w / h;
-    if (aspect > 1.05) { layoutX = Math.min(3.1, aspect + 0.75); layoutY = -0.05; layoutS = 0.9; }
-    else { layoutX = 0; layoutY = 1.5; layoutS = 0.72; }
+    if (aspect > 1.05) {
+      // Keep every orbit to the right of the hero text column. Work in world units on the plane
+      // of the system (distance D from the camera). The furthest a circular orbit of radius r
+      // can project sideways, perspective included, is r / sqrt(1 - (r/D)^2).
+      const D = camera.position.z;
+      const pxToWorld = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * D) / h;
+      const worldX = (px) => (px - w / 2) * pxToWorld;
+      const textRight = (textColumn ? textColumn.getBoundingClientRect().right : w * 0.5) + 28;
+      const reach = (s) => { const r = R_MAX * s; return r / Math.sqrt(1 - (r / D) ** 2) + 0.15 * s; };
+      const maxX = (s) => worldX(w - 12) - EARTH_R * s * 1.15;   // whole Earth stays on screen
+      let s = 0.9;
+      while (s > 0.45 && worldX(textRight) + reach(s) > maxX(s)) s -= 0.02;
+      layoutS = s;
+      layoutX = Math.min(Math.max(worldX(textRight) + reach(s), worldX((textRight + w) / 2)), maxX(s));
+      layoutY = -0.05;
+    } else {
+      layoutX = 0; layoutY = 1.5; layoutS = 0.72;   // phones: Earth above the text
+    }
     requestRender();
   }
 
@@ -450,6 +466,7 @@ export function startSpace({ canvas, stage, label, reducedMotion, onReady }) {
     requestRender();
   }, { passive: true });
   window.addEventListener('resize', layout);
+  if (textColumn && 'ResizeObserver' in window) new ResizeObserver(() => layout()).observe(textColumn);
 
   let hovered = null;
   let onPick = null;

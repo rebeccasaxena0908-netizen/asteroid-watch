@@ -56,6 +56,13 @@ api_run(function () {
         }
     }
 
+    // The size chart counts asteroids; the other charts count approaches. Report both so the UI
+    // can explain any difference (an asteroid that passes twice, or one without a size estimate).
+    $counts = query_one(
+        "SELECT COUNT(*) AS approaches, COUNT(DISTINCT ca.neo_id) AS asteroids,
+                COUNT(DISTINCT CASE WHEN a.est_diameter_max_m IS NULL THEN ca.neo_id END) AS asteroids_without_size
+         $from $where_sql", $params);
+
     $scatter = query_all(
         "SELECT ca.neo_id, a.name, a.is_potentially_hazardous, ca.approach_date,
                 ca.relative_velocity_kps, ca.miss_distance_lunar
@@ -69,6 +76,7 @@ api_run(function () {
         'range' => ['start' => $start, 'end' => $end],
         'daily' => $daily,
         'size_histogram' => $histogram,
+        'counts' => $counts,
         'velocity_vs_distance' => rows_with_bools($scatter),
         'hazardous_split' => rows_with_bools($hazardous),
     ];

@@ -46,7 +46,8 @@ api_run(function () {
     $last_run = query_one(
         "SELECT r.run_id, r.run_type, r.status, r.started_at, r.finished_at,
                 TIMESTAMPDIFF(SECOND, r.started_at, r.finished_at) AS duration_seconds,
-                r.api_calls, r.records_extracted, r.rows_inserted, r.rows_updated, r.quality_failures,
+                r.api_calls, r.records_extracted, r.records_after_dedupe, r.rows_inserted, r.rows_updated,
+                r.quality_failures,
                 (SELECT COUNT(*) FROM quality_results q WHERE q.run_id = r.run_id) AS quality_checks
          FROM pipeline_runs r WHERE r.run_type <> 'crosscheck'
          ORDER BY r.run_id DESC LIMIT 1"

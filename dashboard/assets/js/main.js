@@ -26,11 +26,12 @@ async function startBackground() {
       canvas: document.getElementById('space'),
       stage: document.getElementById('hero-stage'),
       label: document.getElementById('scene-label'),
+      textColumn: document.querySelector('.hero-copy'),
       reducedMotion: reducedMotion.matches,
       onReady: () => document.documentElement.classList.add('space-ready'),
     });
   } catch (err) {
-    // Keep the CSS gradient background (e.g. offline: three.js comes from cdn.jsdelivr.net).
+    // Keep the CSS gradient background (e.g. no WebGL on this device).
     console.warn('3D background unavailable:', err.message);
   }
 }
@@ -79,7 +80,7 @@ function renderSummary(s) {
 
   countUp(document.getElementById('c-haz'), t.hazardous_asteroids, fmtInt);
   document.getElementById('c-haz-sub').replaceChildren(
-    el('strong', { text: fmtInt(w.hazardous) }), ` pass this week · of ${fmtInt(t.asteroids)} asteroids tracked`);
+    `All time, of ${fmtInt(t.asteroids)} · `, el('strong', { text: fmtInt(w.hazardous) }), ' pass this week');
 
   const runBox = document.getElementById('c-run');
   if (run) {

@@ -15,7 +15,8 @@ function asset(string $path): string
 }
 
 $modules = ['api', 'format', 'ui', 'charts', 'table', 'modal', 'health', 'space'];
-$imports = ['three' => 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js'];
+// three.js 0.160.0, vendored (see assets/vendor/README.md) so the page works offline.
+$imports = ['three' => './' . html_entity_decode(asset('assets/vendor/three/three.module.min.js'))];
 foreach ($modules as $m) {
     $imports["./assets/js/$m.js"] = './' . html_entity_decode(asset("assets/js/$m.js"));
 }
@@ -46,14 +47,11 @@ function icon(string $name): string
   <meta name="theme-color" content="#03050c">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233987e5'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%238fd8ff' stroke-width='2' transform='rotate(-25 16 16)'/%3E%3Ccircle cx='28' cy='10' r='2.5' fill='%23d95926'/%3E%3C/svg%3E">
 
-  <!-- Fonts and libraries: jsdelivr only, exact versions. -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/400.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/600.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.0.18/500.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.0.18/600.css">
+  <!-- Fonts and libraries are local copies of exact jsdelivr versions (assets/vendor/README.md),
+       so the dashboard works offline. -->
+  <link rel="stylesheet" href="<?= asset('assets/vendor/fonts/fonts.css') ?>">
   <link rel="stylesheet" href="<?= asset('assets/css/dashboard.css') ?>">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="<?= asset('assets/vendor/chartjs/chart.umd.js') ?>" defer></script>
   <script type="importmap"><?= json_encode(['imports' => $imports], JSON_UNESCAPED_SLASHES) ?></script>
   <script type="module" src="<?= asset('assets/js/main.js') ?>"></script>
 </head>
@@ -143,7 +141,7 @@ function icon(string $name): string
             <span class="open-hint"><?= icon('arrow') ?></span>
           </button>
           <article class="card glass reveal" style="--i:3">
-            <span class="card-label"><?= icon('alert') ?>Potentially hazardous</span>
+            <span class="card-label"><?= icon('alert') ?>Hazardous asteroids tracked</span>
             <span class="card-value" id="c-haz">–</span>
             <span class="card-sub" id="c-haz-sub">&nbsp;</span>
           </article>
@@ -194,7 +192,7 @@ function icon(string $name): string
           </article>
           <article class="chart-card half reveal" style="--i:2">
             <div class="chart-head">
-              <div><h3 id="size-title">Size distribution</h3><p>Asteroids by maximum estimated diameter</p></div>
+              <div><h3 id="size-title">Size distribution</h3><p id="size-sub">Asteroids by maximum estimated diameter</p></div>
             </div>
             <div class="legend" id="size-legend"></div>
             <div class="chart-box"><canvas id="chart-size" role="img" aria-labelledby="size-title"></canvas></div>

@@ -1,30 +1,46 @@
-"""Static checks on the dashboard: libraries only from allowed CDNs (pinned), local Earth texture."""
+"""Static checks on the dashboard: everything loads locally (vendored, verified), local Earth texture."""
+import hashlib
 import re
 
 from pipeline.config import PROJECT_ROOT
 
 DASHBOARD = PROJECT_ROOT / "dashboard"
-ALLOWED_LIBRARY_HOSTS = {"cdn.jsdelivr.net", "cdnjs.cloudflare.com"}
-# Links the page shows to people (not loaded as code or styles).
+VENDOR = DASHBOARD / "assets" / "vendor"
+# Links the page shows to people (opened by a click, never loaded as code, styles or fonts).
 LINK_HOSTS = {"api.nasa.gov", "ssd-api.jpl.nasa.gov", "visibleearth.nasa.gov", "www.w3.org"}
 
 
 def page_sources():
     files = [DASHBOARD / "index.php", *sorted((DASHBOARD / "assets" / "js").glob("*.js")),
-             *sorted((DASHBOARD / "assets" / "css").glob("*.css"))]
+             *sorted((DASHBOARD / "assets" / "css").glob("*.css")), VENDOR / "fonts" / "fonts.css"]
     return {f: f.read_text() for f in files}
 
 
-def test_libraries_only_from_allowed_cdns_with_exact_versions():
+def test_nothing_is_loaded_from_external_hosts():
     for path, text in page_sources().items():
-        for url in re.findall(r"https?://[^\s\"'<>)]+", text):
-            host = url.split("/")[2]
-            if host in LINK_HOSTS:
-                continue
-            assert host in ALLOWED_LIBRARY_HOSTS, f"{path.name}: {url}"
-            if url.rstrip("/").count("/") == 2:
-                continue   # bare host, e.g. <link rel="preconnect">: loads nothing
-            assert re.search(r"@\d+\.\d+\.\d+/", url), f"{path.name}: version not pinned in {url}"
+        code = re.sub(r"<!--.*?-->|/\*.*?\*/|^\s*//.*$", "", text, flags=re.S | re.M)   # ignore comments
+        for url in re.findall(r"https?://[^\s\"'<>)]+", code):
+            assert url.split("/")[2] in LINK_HOSTS, f"{path.name} loads an external URL: {url}"
+
+
+def test_vendored_files_have_licences_and_match_recorded_hashes():
+    readme = (VENDOR / "README.md").read_text()
+    rows = re.findall(r"\| `[^`]+` \| `[^`]+` \| `([^`]+)` \| [\d,]+ \| `([0-9a-f]{16})…`", readme)
+    assert len(rows) == 14
+    for local, sha_prefix in rows:
+        assert hashlib.sha256((VENDOR / local).read_bytes()).hexdigest().startswith(sha_prefix), local
+    for licence in ["three/LICENSE", "chartjs/LICENSE.md", "fonts/inter/LICENSE", "fonts/space-grotesk/LICENSE"]:
+        assert (VENDOR / licence).stat().st_size > 500, licence
+
+
+def test_index_uses_the_vendored_copies():
+    index = (DASHBOARD / "index.php").read_text()
+    for path in ["assets/vendor/three/three.module.min.js", "assets/vendor/chartjs/chart.umd.js",
+                 "assets/vendor/fonts/fonts.css"]:
+        assert path in index
+        assert (DASHBOARD / path).exists()
+    for font in re.findall(r"url\(\./([^)]+)\)", (VENDOR / "fonts" / "fonts.css").read_text()):
+        assert (VENDOR / "fonts" / font).exists(), font
 
 
 def test_earth_texture_is_local_and_small():

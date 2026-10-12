@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     date_range_end     DATE          NULL,
     api_calls          INT           NOT NULL DEFAULT 0,
     records_extracted  INT           NOT NULL DEFAULT 0,
+    records_after_dedupe INT         NULL,                       -- approaches left after removing duplicate listings
     rows_inserted      INT           NOT NULL DEFAULT 0,
     rows_updated       INT           NOT NULL DEFAULT 0,
     quality_failures   INT           NOT NULL DEFAULT 0,

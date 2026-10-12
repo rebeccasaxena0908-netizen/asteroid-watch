@@ -104,4 +104,13 @@
 - **Errors:** MySQL off shows a banner with Retry, "Database offline" status, and "–" placeholders (never a made-up 0). The 3D scene keeps running.
 - **Verified in Chrome (M2 GPU via Metal and SwiftShader):** 61 fps; desktop 1440×900 and phone 390×844 with no horizontal scroll; reduced motion; 3D hover labels; modal; full-year range; search; MySQL-down state. Bugs found and fixed through screenshots: nebula dither grid, atmosphere ring, rocks over the hero text, PHP `"$min–"` UTF-8 interpolation in size labels, "null" text, Indian vs international digit grouping, partial-week dips.
 - Tests: `make test` **94 passing** (new: libraries only from allowed CDNs with pinned versions, local texture, no innerHTML with data); `make api-test` **10 passing**.
-- **Note:** three.js, Chart.js and fonts load from jsdelivr, so the page needs internet for the 3D scene and charts. Without it, the background falls back to a CSS gradient and the data tables still work.
+
+### 6b. Polish + offline (2026-10-12, requested after review)
+- **Hero:** the scene measures the text column and places Earth so that the furthest any orbit can reach on screen (r/√(1−(r/D)²), perspective included) stays right of it; shrinks only if needed. Measured over 4 s of animation: leftmost rock vs text edge at 1100/1280/1440/1920 px wide = +66/+81/+87/+111 px clear.
+- **Tile** renamed to "Hazardous asteroids tracked" (all time; sub-line "8 pass this week").
+- **Pipeline:** new column `pipeline_runs.records_after_dedupe` (schema + idempotent `sql/03_migrations.sql`); the panel shows "1,934 extracted → 1,876 after dedupe" with a note on the 58 duplicate listings. Run 9 (backfill) is the first run with the value.
+- **Size chart:** the 304 vs 305 difference is not a missing size (0 asteroids lack one): the size chart counts asteroids, the others approaches, and (2014 QS295) passes twice in that range. `trends.php` now returns `counts` and the chart explains the difference from the data.
+- **JPL cross-check runs** show "Completed · N findings" (info style, "finding" tags) instead of "checks failed".
+- **Vendored for offline use:** three.js 0.160.0, Chart.js 4.4.1 (published `dist/chart.umd.js`; the earlier `chart.umd.min.js` was generated on the fly by jsdelivr and isn't part of the package), Inter and Space Grotesk (latin + latin-ext) with their MIT/OFL licences in `dashboard/assets/vendor/` (1.0 MB). All 14 files are checked against jsdelivr's published SHA-256 hashes; `vendor/README.md` records source URLs and hashes, and a test re-checks them.
+- **Offline test:** Chrome with jsdelivr/cdnjs/unpkg/Google Fonts blocked: **0 external requests**, 3D scene running, 4 charts drawn, all 4 font weights loaded.
+- Tests: `make test` **96 passing**, `make api-test` **10 passing**.
