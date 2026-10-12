@@ -89,3 +89,17 @@ CREATE TABLE IF NOT EXISTS quality_results (
     CONSTRAINT fk_quality_run FOREIGN KEY (run_id)
         REFERENCES pipeline_runs (run_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Old provisional neo_ids that NeoWs also lists under a newer numbered neo_id (same designation),
+-- e.g. 3430309 "(2008 TC4)" -> 2614134 "614134 (2008 TC4)". The pipeline stores approaches
+-- of an old id under its numbered id. See docs/duplicate_ids.md.
+CREATE TABLE IF NOT EXISTS neo_id_aliases (
+    old_neo_id       VARCHAR(20)   NOT NULL,
+    numbered_neo_id  VARCHAR(20)   NOT NULL,
+    designation      VARCHAR(50)   NOT NULL,
+    created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (old_neo_id),
+    INDEX idx_alias_numbered (numbered_neo_id),
+    CONSTRAINT fk_alias_asteroid FOREIGN KEY (numbered_neo_id)
+        REFERENCES asteroids (neo_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

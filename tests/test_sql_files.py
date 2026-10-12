@@ -12,7 +12,8 @@ def test_split_sql_drops_comments_and_blank_statements():
 def test_schema_defines_all_tables():
     statements = split_sql((PROJECT_ROOT / "sql" / "01_schema.sql").read_text())
     tables = {s.split()[5] for s in statements if s.startswith("CREATE TABLE IF NOT EXISTS")}
-    assert tables == {"asteroids", "close_approaches", "orbital_data", "pipeline_runs", "quality_results"}
+    assert tables == {"asteroids", "close_approaches", "orbital_data", "pipeline_runs", "quality_results",
+                      "neo_id_aliases"}
 
 
 def test_close_approaches_has_dedupe_key():

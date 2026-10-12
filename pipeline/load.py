@@ -67,8 +67,25 @@ def upsert_rows(cur, table: str, columns: list[str], key_columns: list[str], row
     return split_counts(before, count_rows(cur, table), affected)
 
 
-def load_feed_rows(conn, asteroids: list[dict], approaches: list[dict]) -> dict[str, LoadCounts]:
-    """Upsert asteroids then approaches in one transaction (approaches reference asteroids)."""
+def load_known_aliases(conn) -> dict[str, str]:
+    """Old provisional neo_id -> numbered neo_id, from earlier runs (see transform.merge_aliases)."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT old_neo_id, numbered_neo_id FROM neo_id_aliases")
+        return {r["old_neo_id"]: r["numbered_neo_id"] for r in cur.fetchall()}
+
+
+def save_aliases(cur, aliases: list[dict]) -> None:
+    if aliases:
+        cur.executemany("INSERT IGNORE INTO neo_id_aliases (old_neo_id, numbered_neo_id, designation) "
+                        "VALUES (%s, %s, %s)",
+                        [(a["old_neo_id"], a["numbered_neo_id"], a["designation"]) for a in aliases])
+        log.info("neo_id_aliases: %d new old-id -> numbered-id mappings", len(aliases))
+
+
+def load_feed_rows(conn, asteroids: list[dict], approaches: list[dict],
+                   aliases: list[dict] | None = None) -> dict[str, LoadCounts]:
+    """Upsert asteroids, then approaches, then new aliases, in one transaction
+    (approaches and aliases reference asteroids)."""
     try:
         with conn.cursor() as cur:
             counts = {
@@ -76,6 +93,7 @@ def load_feed_rows(conn, asteroids: list[dict], approaches: list[dict]) -> dict[
                 "close_approaches": upsert_rows(cur, "close_approaches", APPROACH_COLUMNS,
                                                 ["neo_id", "epoch_ms"], approaches),
             }
+            save_aliases(cur, aliases or [])
         conn.commit()
     except Exception:
         conn.rollback()

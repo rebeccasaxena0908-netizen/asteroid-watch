@@ -20,7 +20,7 @@ from pipeline import quality
 from pipeline.config import PROJECT_ROOT, load_settings
 from pipeline.db import connect
 from pipeline.extract import NeoWsClient, extract_feed, extract_lookups
-from pipeline.load import asteroids_needing_orbits, load_feed_rows, load_orbital_rows
+from pipeline.load import asteroids_needing_orbits, load_feed_rows, load_known_aliases, load_orbital_rows
 from pipeline.transform import transform_feeds, transform_orbital
 
 log = logging.getLogger("pipeline")
@@ -80,7 +80,9 @@ def run(args, settings=None, today: date | None = None) -> dict:
         clean = transform_feeds(extracted.payloads)
         stats = {"api_calls": client.api_calls, "records_extracted": clean.records_seen,
                  "asteroids": len(clean.asteroids), "approaches": len(clean.approaches),
-                 "duplicates_removed": clean.duplicates_removed, "rejected": len(clean.rejected)}
+                 "duplicates_removed": clean.duplicates_removed,
+                 "same_object_removed": clean.same_object_removed,
+                 "same_object_remapped": clean.same_object_remapped, "rejected": len(clean.rejected)}
         log_checks(quality.run_checks(extracted, clean))
         log.info("Dry run result: %s", stats)
         return stats
@@ -91,15 +93,17 @@ def run(args, settings=None, today: date | None = None) -> dict:
     try:
         # Extract (bronze) -> transform (silver) -> load
         extracted = extract_feed(client, start, end)
-        clean = transform_feeds(extracted.payloads)
+        clean = transform_feeds(extracted.payloads, load_known_aliases(conn))
         stats["records_extracted"] = clean.records_seen
         log.info("Transformed %d records into %d asteroids and %d approaches "
-                 "(%d duplicates removed, %d rejected)", clean.records_seen, len(clean.asteroids),
-                 len(clean.approaches), clean.duplicates_removed, len(clean.rejected))
+                 "(%d duplicates removed, %d old-id copies removed, %d old-id approaches moved "
+                 "to numbered ids, %d rejected)",
+                 clean.records_seen, len(clean.asteroids), len(clean.approaches), clean.duplicates_removed,
+                 clean.same_object_removed, clean.same_object_remapped, len(clean.rejected))
         for reason in clean.rejected[:10]:
             log.warning("Rejected: %s", reason)
 
-        counts = load_feed_rows(conn, clean.asteroids, clean.approaches)
+        counts = load_feed_rows(conn, clean.asteroids, clean.approaches, clean.new_aliases)
         stats["rows_inserted"] = counts["close_approaches"].inserted
         stats["rows_updated"] = counts["close_approaches"].updated
 

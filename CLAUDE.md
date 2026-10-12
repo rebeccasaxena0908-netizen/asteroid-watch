@@ -28,6 +28,7 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.
 - Orbital lookups are capped per run (backfill finds ~1,700 asteroids, above the hourly limit if fetched all at once).
 - NeoWs feed omits some dates entirely (4 of 396 in the backfill); JPL CAD shows approaches on them, so they're gaps.
-- NeoWs lists some asteroids under two neo_ids (old provisional 3xxxxxx + numbered 2xxxxxx); see quality check no_same_object_under_two_ids.
+- NeoWs lists some asteroids under two neo_ids (old provisional + numbered). transform.merge_aliases stores them under the numbered id (neo_id_aliases table, 60-min same-event tolerance). See docs/duplicate_ids.md. Never delete DB rows without the user's approval: back up first, preview with cleanup_twins, apply with --expect.
+- XAMPP mysqldump: --routines fails (old mysql.proc); don't run mysql_upgrade without asking.
 - NeoWs is a subset of JPL CAD (~23% of approaches within 0.5 AU on sampled days).
 - JPL CAD: query by `spk=<neo_id>`; date-min == date-max returns nothing.

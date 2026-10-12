@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from pipeline.extract import ExtractResult
-from pipeline.transform import TransformResult
+from pipeline.transform import SAME_EVENT_MS, TransformResult
 
 
 @dataclass
@@ -58,11 +58,17 @@ DESIGNATION_SQL = "SUBSTRING_INDEX(SUBSTRING_INDEX(a.name, '(', -1), ')', 1)"
 
 def check_same_object_under_two_ids(cur) -> CheckResult:
     """NeoWs sometimes lists one asteroid under its old provisional id AND its newer numbered id
-    (e.g. 3430309 "(2008 TC4)" and 2614134 "614134 (2008 TC4)"), with identical approaches.
-    UNIQUE(neo_id, epoch_ms) can't catch that, so look for one designation + epoch under 2+ ids."""
-    cur.execute(f"SELECT COUNT(*) AS n FROM (SELECT {DESIGNATION_SQL} AS designation, ca.epoch_ms "
-                "FROM close_approaches ca JOIN asteroids a ON a.neo_id = ca.neo_id "
-                "GROUP BY designation, ca.epoch_ms HAVING COUNT(DISTINCT ca.neo_id) > 1) d")
+    (e.g. 3430309 "(2008 TC4)" and 2614134 "614134 (2008 TC4)"), with the same approach (sometimes a
+    minute apart). UNIQUE(neo_id, epoch_ms) can't catch that, so look for one designation with
+    approaches under two neo_ids within an hour of each other."""
+    d1, d2 = DESIGNATION_SQL.replace("a.", "a1."), DESIGNATION_SQL.replace("a.", "a2.")
+    cur.execute(
+        "SELECT COUNT(*) AS n FROM close_approaches c1 "
+        "JOIN asteroids a1 ON a1.neo_id = c1.neo_id "
+        "JOIN close_approaches c2 ON c2.neo_id > c1.neo_id "
+        "  AND c2.approach_date BETWEEN c1.approach_date - INTERVAL 1 DAY AND c1.approach_date + INTERVAL 1 DAY "
+        "  AND ABS(c2.epoch_ms - c1.epoch_ms) <= %s "
+        f"JOIN asteroids a2 ON a2.neo_id = c2.neo_id AND {d2} = {d1}", (SAME_EVENT_MS,))
     events = cur.fetchone()["n"]
     return CheckResult("no_same_object_under_two_ids", events == 0,
                        f"{events} approaches stored under two different neo_ids for the same designation")

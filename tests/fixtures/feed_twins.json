@@ -1,0 +1,159 @@
+{
+ "element_count": 3,
+ "links": {
+  "next": "http://api.nasa.gov/neo/rest/v1/feed?start_date=2026-10-18&end_date=2026-10-24&detailed=false&api_key=REDACTED",
+  "previous": "http://api.nasa.gov/neo/rest/v1/feed?start_date=2026-10-06&end_date=2026-10-12&detailed=false&api_key=REDACTED",
+  "self": "http://api.nasa.gov/neo/rest/v1/feed?start_date=2026-10-12&end_date=2026-10-18&detailed=false&api_key=REDACTED"
+ },
+ "near_earth_objects": {
+  "2026-10-17": [
+   {
+    "absolute_magnitude_h": 21.65,
+    "close_approach_data": [
+     {
+      "close_approach_date": "2026-10-17",
+      "close_approach_date_full": "2026-Oct-17 04:02",
+      "epoch_date_close_approach": 1792209720000,
+      "miss_distance": {
+       "astronomical": "0.304501134",
+       "kilometers": "45552721.05898458",
+       "lunar": "118.450941126",
+       "miles": "28305148.338884004"
+      },
+      "orbiting_body": "Earth",
+      "relative_velocity": {
+       "kilometers_per_hour": "90045.499447381",
+       "kilometers_per_second": "25.0126387354",
+       "miles_per_hour": "55950.7715871796"
+      }
+     }
+    ],
+    "estimated_diameter": {
+     "feet": {
+      "estimated_diameter_max": 912.0634034438,
+      "estimated_diameter_min": 407.887153978
+     },
+     "kilometers": {
+      "estimated_diameter_max": 0.2779969165,
+      "estimated_diameter_min": 0.1243240006
+     },
+     "meters": {
+      "estimated_diameter_max": 277.9969164738,
+      "estimated_diameter_min": 124.3240005541
+     },
+     "miles": {
+      "estimated_diameter_max": 0.172739222,
+      "estimated_diameter_min": 0.0772513285
+     }
+    },
+    "id": "3430309",
+    "is_potentially_hazardous_asteroid": true,
+    "is_sentry_object": false,
+    "links": {
+     "self": "http://api.nasa.gov/neo/rest/v1/neo/3430309?api_key=REDACTED"
+    },
+    "name": "(2008 TC4)",
+    "nasa_jpl_url": "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=3430309",
+    "neo_reference_id": "3430309"
+   },
+   {
+    "absolute_magnitude_h": 21.65,
+    "close_approach_data": [
+     {
+      "close_approach_date": "2026-10-17",
+      "close_approach_date_full": "2026-Oct-17 04:02",
+      "epoch_date_close_approach": 1792209720000,
+      "miss_distance": {
+       "astronomical": "0.3045011347",
+       "kilometers": "45552721.163703089",
+       "lunar": "118.4509413983",
+       "miles": "28305148.4039530682"
+      },
+      "orbiting_body": "Earth",
+      "relative_velocity": {
+       "kilometers_per_hour": "90045.4992122974",
+       "kilometers_per_second": "25.0126386701",
+       "miles_per_hour": "55950.7714411078"
+      }
+     }
+    ],
+    "estimated_diameter": {
+     "feet": {
+      "estimated_diameter_max": 912.0634034438,
+      "estimated_diameter_min": 407.887153978
+     },
+     "kilometers": {
+      "estimated_diameter_max": 0.2779969165,
+      "estimated_diameter_min": 0.1243240006
+     },
+     "meters": {
+      "estimated_diameter_max": 277.9969164738,
+      "estimated_diameter_min": 124.3240005541
+     },
+     "miles": {
+      "estimated_diameter_max": 0.172739222,
+      "estimated_diameter_min": 0.0772513285
+     }
+    },
+    "id": "2614134",
+    "is_potentially_hazardous_asteroid": true,
+    "is_sentry_object": false,
+    "links": {
+     "self": "http://api.nasa.gov/neo/rest/v1/neo/2614134?api_key=REDACTED"
+    },
+    "name": "614134 (2008 TC4)",
+    "nasa_jpl_url": "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=2614134",
+    "neo_reference_id": "2614134"
+   },
+   {
+    "absolute_magnitude_h": 18.27,
+    "close_approach_data": [
+     {
+      "close_approach_date": "2026-10-17",
+      "close_approach_date_full": "2026-Oct-17 01:39",
+      "epoch_date_close_approach": 1792201140000,
+      "miss_distance": {
+       "astronomical": "0.1796403588",
+       "kilometers": "26873815.042515756",
+       "lunar": "69.8800995732",
+       "miles": "16698614.3423831928"
+      },
+      "orbiting_body": "Earth",
+      "relative_velocity": {
+       "kilometers_per_hour": "80989.6255854415",
+       "kilometers_per_second": "22.4971182182",
+       "miles_per_hour": "50323.8037422428"
+      }
+     }
+    ],
+    "estimated_diameter": {
+     "feet": {
+      "estimated_diameter_max": 4325.3875913241,
+      "estimated_diameter_min": 1934.3721366469
+     },
+     "kilometers": {
+      "estimated_diameter_max": 1.3183780956,
+      "estimated_diameter_min": 0.5895966084
+     },
+     "meters": {
+      "estimated_diameter_max": 1318.3780956475,
+      "estimated_diameter_min": 589.5966083829
+     },
+     "miles": {
+      "estimated_diameter_max": 0.8192019157,
+      "estimated_diameter_min": 0.3663582341
+     }
+    },
+    "id": "2144900",
+    "is_potentially_hazardous_asteroid": true,
+    "is_sentry_object": false,
+    "links": {
+     "self": "http://api.nasa.gov/neo/rest/v1/neo/2144900?api_key=REDACTED"
+    },
+    "name": "144900 (2004 VG64)",
+    "nasa_jpl_url": "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=2144900",
+    "neo_reference_id": "2144900"
+   }
+  ]
+ }
+}

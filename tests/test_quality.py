@@ -122,7 +122,7 @@ def test_same_object_check_uses_designation_and_epoch():
     cur = FakeCursor({"n": 57})
     check = check_same_object_under_two_ids(cur)
     assert not check.passed and "57 approaches" in check.details
-    assert "GROUP BY designation, ca.epoch_ms" in cur.sql
+    assert "ABS(c2.epoch_ms - c1.epoch_ms)" in cur.sql
     assert check_same_object_under_two_ids(FakeCursor({"n": 0})).passed
 
 

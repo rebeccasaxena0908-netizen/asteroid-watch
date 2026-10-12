@@ -76,3 +76,16 @@ def test_upsert_rows_with_no_rows_does_nothing():
     cur = FakeCursor({})
     assert upsert_rows(cur, "t", ["id", "v"], ["id"], []) == LoadCounts()
     assert cur.batches == []
+
+
+def test_save_aliases_inserts_ignore():
+    from pipeline.load import save_aliases
+
+    class Cur:
+        def executemany(self, sql, rows):
+            self.sql, self.rows = sql, rows
+
+    cur = Cur()
+    save_aliases(cur, [{"old_neo_id": "3430309", "numbered_neo_id": "2614134", "designation": "2008 TC4"}])
+    assert cur.sql.startswith("INSERT IGNORE INTO neo_id_aliases")
+    assert cur.rows == [("3430309", "2614134", "2008 TC4")]

@@ -6,7 +6,7 @@
 | 2. Extract | ✅ Done (2026-10-12) |
 | 3. Transform and load | ✅ Done (2026-10-12) |
 | 4. Quality checks and scheduling (+ JPL cross-check) | ✅ Done (2026-10-12) |
-| 5. PHP JSON API | ⏳ Next |
+| 5. PHP JSON API | ⏳ In progress |
 | 6. Animated dashboard | |
 | 7. Docs and submission material | |
 
@@ -66,7 +66,7 @@
 ### 4b. Extra quality check: same asteroid under two IDs
 - Found while preparing the JPL check: NeoWs lists some asteroids under both an old provisional id and a newer numbered id, e.g. `3430309` "(2008 TC4)" and `2614134` "614134 (2008 TC4)", with identical approaches. UNIQUE(neo_id, epoch_ms) can't catch this.
 - New table-level check `no_same_object_under_two_ids` (same designation + epoch under 2+ neo_ids). Current data: **FAIL, 57 approaches stored twice (25 of them hazardous)**.
-- Detection only. No rows changed. **Open decision for the user:** dedupe in transform and clean the existing rows?
+- Fixed in 4d below.
 
 ### 4c. JPL cross-check (`pipeline/jpl_crosscheck.py`, `make crosscheck`)
 - Compares a reproducible random sample (seed 42) of stored approaches with the JPL CAD API by SPK-ID (= neo_id), and compares per-day counts within 0.5 AU on the 4 feed-missing days + 10 random days. Saved as a `crosscheck` run (run 6, 64 calls) in pipeline_runs/quality_results; report in `docs/jpl_crosscheck.md`.
@@ -75,3 +75,11 @@
 - **Coverage:** on 14 sampled days NeoWs gave 50 approaches within 0.5 AU vs JPL's 217 (~23%). On the 4 feed-missing days JPL lists 10, 19, 13 and 11 approaches, so **those are real gaps in NeoWs, not empty days.**
 - Gotcha: CAD with date-min = date-max returns 0 rows; use [day, day+1).
 - Tests: 68 passing (with a real CAD response fixture).
+
+### 4d. Duplicate-ID fix (approved by the user) — full write-up in `docs/duplicate_ids.md`
+- Rule: when a designation is listed under several neo_ids with exactly one numbered, the others are aliases; their approaches are stored under the numbered id, and a copy within 60 min of a numbered-id approach is dropped. New table `neo_id_aliases` remembers mappings for later runs.
+- Backup `backups/asteroid_watch_2026-10-12_before_twin_cleanup.sql`, checked by a test restore. `cleanup_twins.py` preview, then apply with `--expect 57,1,56 --skip 54290860`.
+- **Before → after:** asteroids 1,684 → 1,628; close_approaches 1,934 → 1,877; hazardous approaches 213 → 188; orbital_data 605 → 578; aliases 0 → 56. (2017 AE5) Jul 4 approach moved to 2755140.
+- Run 7 (backfill re-run): 0 inserted / 0 updated; `no_same_object_under_two_ids` 57 → **1** (only the skipped (2022 OP)).
+- **Open:** (2022 OP) old id 54290860 (row 355, twin 1 min apart) awaits user approval: `python -m pipeline.cleanup_twins --apply --expect 1,0,1`.
+- Tests: 78 passing.

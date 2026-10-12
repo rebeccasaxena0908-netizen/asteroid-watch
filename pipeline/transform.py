@@ -10,6 +10,8 @@ Output:
 
 NASA sends most numbers as strings ("23.6179645803"), so every number is converted.
 Records that cannot be loaded at all (no id, no date, no epoch) are rejected and counted.
+When one asteroid appears under two neo_ids (old provisional + numbered), everything is stored
+under the numbered id (see merge_aliases).
 """
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -21,6 +23,9 @@ class TransformResult:
     approaches: list[dict] = field(default_factory=list)
     records_seen: int = 0                                  # approach records in the raw JSON
     duplicates_removed: int = 0
+    same_object_removed: int = 0                           # old-id copies of an approach dropped
+    same_object_remapped: int = 0                          # old-id approaches moved to the numbered id
+    new_aliases: list[dict] = field(default_factory=list)  # old id -> numbered id found in this batch
     rejected: list[str] = field(default_factory=list)      # human-readable reasons
 
 
@@ -94,7 +99,7 @@ def transform_approach(neo_id: str, approach: dict) -> dict:
     }
 
 
-def transform_feeds(payloads: list[dict]) -> TransformResult:
+def transform_feeds(payloads: list[dict], known_aliases: dict[str, str] | None = None) -> TransformResult:
     result = TransformResult()
     asteroids: dict[str, dict] = {}
     approaches: dict[tuple, dict] = {}
@@ -122,7 +127,79 @@ def transform_feeds(payloads: list[dict]) -> TransformResult:
 
     result.asteroids = list(asteroids.values())
     result.approaches = list(approaches.values())
+    merge_aliases(result, known_aliases or {})
     return result
+
+
+def designation(name: str) -> str:
+    """Text in the last brackets: '614134 (2008 TC4)' -> '2008 TC4'; '(2008 TC4)' -> '2008 TC4'."""
+    if "(" not in name:
+        return name.strip()
+    return name.rsplit("(", 1)[1].split(")", 1)[0].strip()
+
+
+def is_numbered(name: str) -> bool:
+    """Numbered asteroids have their number first ('614134 (2008 TC4)', '433 Eros (A898 PA)');
+    provisional-only names start with the bracket ('(2008 TC4)')."""
+    return name[:1].isdigit()
+
+
+SAME_EVENT_MS = 60 * 60 * 1000   # two listings of one approach are at most minutes apart
+
+
+def find_aliases(asteroids: list[dict]) -> dict[str, str]:
+    """Old provisional neo_id -> numbered neo_id, for designations listed under 2+ neo_ids.
+
+    Only when exactly one of them is numbered; otherwise we don't guess.
+    """
+    by_designation: dict[str, list[dict]] = {}
+    for a in asteroids:
+        by_designation.setdefault(designation(a["name"]), []).append(a)
+    aliases = {}
+    for group in by_designation.values():
+        numbered = [a for a in group if is_numbered(a["name"])]
+        if len(group) < 2 or len(numbered) != 1:
+            continue
+        for a in group:
+            if a["neo_id"] != numbered[0]["neo_id"]:
+                aliases[a["neo_id"]] = numbered[0]["neo_id"]
+    return aliases
+
+
+def merge_aliases(result: TransformResult, known_aliases: dict[str, str]) -> None:
+    """NeoWs sometimes lists one asteroid under two neo_ids: its old provisional id and its newer
+    numbered id (e.g. 3430309 '(2008 TC4)' and 2614134 '614134 (2008 TC4)').
+
+    Approaches of an old id are stored under the numbered id. If the numbered id already has an
+    approach within an hour (the same event listed twice), the old id's copy is dropped.
+    Aliases come from this batch (both ids present) and from earlier runs (known_aliases, from
+    the neo_id_aliases table), so an old id appearing on its own is handled too.
+    """
+    names = {a["neo_id"]: a["name"] for a in result.asteroids}
+    batch_aliases = find_aliases(result.asteroids)
+    aliases = {**known_aliases, **batch_aliases}
+    result.new_aliases = [{"old_neo_id": old, "numbered_neo_id": new, "designation": designation(names[old])}
+                          for old, new in batch_aliases.items() if known_aliases.get(old) != new]
+    if not aliases:
+        return
+
+    kept = [r for r in result.approaches if r["neo_id"] not in aliases]
+    epochs: dict[str, list[int]] = {}
+    for r in kept:
+        epochs.setdefault(r["neo_id"], []).append(r["epoch_ms"])
+    for r in result.approaches:
+        if r["neo_id"] not in aliases:
+            continue
+        target = aliases[r["neo_id"]]
+        if any(abs(e - r["epoch_ms"]) <= SAME_EVENT_MS for e in epochs.get(target, [])):
+            result.same_object_removed += 1
+            continue
+        kept.append({**r, "neo_id": target})
+        epochs.setdefault(target, []).append(r["epoch_ms"])
+        result.same_object_remapped += 1
+
+    result.approaches = kept
+    result.asteroids = [a for a in result.asteroids if a["neo_id"] not in aliases]
 
 
 def transform_orbital(neo: dict) -> dict | None:

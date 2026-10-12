@@ -19,3 +19,6 @@ logs/
 
 # Spec file stays local
 AsteroidWatch_ClaudeCode_Prompt.md
+
+# Database backups
+backups/
