@@ -16,3 +16,6 @@ logs/
 
 # macOS
 .DS_Store
+
+# Spec file stays local
+AsteroidWatch_ClaudeCode_Prompt.md
