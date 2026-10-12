@@ -24,6 +24,9 @@ class Settings:
     db_user: str
     db_password: str = field(repr=False)
     db_name: str
+    # Read-only user for the PHP dashboard (SELECT only)
+    dashboard_db_user: str = "asteroid_reader"
+    dashboard_db_password: str = field(default="", repr=False)
 
     @property
     def has_real_api_key(self) -> bool:
@@ -44,4 +47,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         db_user=get("DB_USER", "asteroid_user"),
         db_password=get("DB_PASSWORD"),
         db_name=get("DB_NAME", "asteroid_watch"),
+        dashboard_db_user=get("DASHBOARD_DB_USER", "asteroid_reader"),
+        dashboard_db_password=get("DASHBOARD_DB_PASSWORD"),
     )

@@ -6,8 +6,8 @@
 | 2. Extract | ✅ Done (2026-10-12) |
 | 3. Transform and load | ✅ Done (2026-10-12) |
 | 4. Quality checks and scheduling (+ JPL cross-check) | ✅ Done (2026-10-12) |
-| 5. PHP JSON API | ⏳ In progress |
-| 6. Animated dashboard | |
+| 5. PHP JSON API | ✅ Done (2026-10-12) |
+| 6. Animated dashboard | ⏳ Next |
 | 7. Docs and submission material | |
 
 ## Phase 1: Setup (2026-10-12)
@@ -83,3 +83,12 @@
 - Run 7 (backfill re-run): 0 inserted / 0 updated; `no_same_object_under_two_ids` 57 → **1** (only the skipped (2022 OP)).
 - **Open:** (2022 OP) old id 54290860 (row 355, twin 1 min apart) awaits user approval: `python -m pipeline.cleanup_twins --apply --expect 1,0,1`.
 - Tests: 78 passing.
+
+## Phase 5: PHP JSON API (2026-10-12) — reference in `docs/api.md`
+- Endpoints in `dashboard/api/`: `summary.php`, `approaches.php` (date range, hazardous filter, name search, 5 sort keys, pagination), `asteroid.php` (detail + orbit + all approaches; old ids resolve to numbered), `trends.php` (daily counts, size histogram, velocity vs distance, hazardous split), `runs.php` (runs + quality results).
+- `includes/db.php`: PDO, real prepared statements (`EMULATE_PREPARES=false`), socket first then TCP. `includes/api.php`: JSON responses, GET only, validation helpers, errors 400/404/405/503/500 (no internal details leaked).
+- Read-only MySQL user `asteroid_reader` (SELECT, SHOW VIEW on asteroid_watch) created by `make setup-db`; password generated into `.env`.
+- `make deploy` writes `/Applications/XAMPP/xamppfiles/etc/asteroid-watch/db.ini` (outside the web root, read-only user only), then rsyncs. `.htaccess`: includes/ → 403, no directory listings.
+- Fixed: XAMPP's `serialize_precision=100` printed floats like `7622017.520253947935998…` (now -1); SUM() returned strings (now CAST to integers); JSON is compact by default (trends 646 KB → 362 KB), with `?pretty=1` for reading.
+- Tests: `make test` **91 passing** (offline, including 13 PHP CLI tests: lint, validation, MySQL-down message). `make api-test` **10 passing** (live endpoints checked against direct SQL).
+- Live numbers (after the duplicate-ID fix): 1,628 asteroids (176 hazardous), 1,877 approaches (188 hazardous), 578 with orbits; this week 38 approaches (8 hazardous); closest on record (2025 US6) at 0.355 LD; largest 433 Eros (max ~49.4 km).

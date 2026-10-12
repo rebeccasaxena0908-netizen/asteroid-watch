@@ -15,13 +15,15 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 ## Environment (verified 2026-10-12)
 - XAMPP MariaDB 10.4.28. Socket `/Applications/XAMPP/xamppfiles/var/mysql/mysql.sock`, TCP 127.0.0.1:3306 also works.
 - App DB user `asteroid_user` (localhost + 127.0.0.1), privileges only on `asteroid_watch`. MariaDB needs DROP for `CREATE OR REPLACE VIEW`.
-- XAMPP root has no password; it's used only by `pipeline/setup_db.py`.
-- Apache runs as `daemon` and can't read `~/code` (home is 750), so `make deploy` copies with rsync (a symlink gives 403). For the same reason PHP can't read the project `.env`; it needs its own config file in a location `daemon` can read.
+- Dashboard DB user `asteroid_reader`: SELECT, SHOW VIEW on asteroid_watch only.
+- XAMPP root has no password; it's used only by `pipeline/setup_db.py` (and mysqldump backups).
+- XAMPP php.ini has serialize_precision=100: api.php sets it to -1. MySQL SUM() returns strings via PDO: CAST AS UNSIGNED.
+- Apache runs as `daemon` and can't read `~/code` (home is 750), so `make deploy` copies with rsync (a symlink gives 403). For the same reason PHP can't read the project `.env`: `make deploy` writes the read-only user's credentials to `/Applications/XAMPP/xamppfiles/etc/asteroid-watch/db.ini` (644).
 - NASA key rate limit is 2,000 requests/hour (from X-RateLimit-Limit header).
 - PHP 8.2.4 with pdo_mysql. Python 3.14 in `.venv`. Mac timezone is Asia/Kolkata (IST).
 
 ## Commands
-`make install | setup-db | check-db | test | extract | run | backfill | crosscheck | deploy | undeploy`
+`make install | setup-db | check-db | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes

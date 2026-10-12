@@ -19,6 +19,9 @@ SQL_FILES = [PROJECT_ROOT / "sql" / "01_schema.sql", PROJECT_ROOT / "sql" / "02_
 APP_PRIVILEGES = ("SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES, DROP, "
                   "CREATE VIEW, SHOW VIEW")
 
+# The dashboard (PHP) user can only read.
+READER_PRIVILEGES = "SELECT, SHOW VIEW"
+
 # 'localhost' covers socket connections; '127.0.0.1' covers TCP connections.
 APP_HOSTS = ["localhost", "127.0.0.1"]
 
@@ -40,17 +43,20 @@ def create_database_and_user() -> None:
             f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
             "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
         )
-        for host in APP_HOSTS:
-            # Values (not identifiers) are passed as parameters, so the password is escaped safely.
-            cur.execute("CREATE USER IF NOT EXISTS %s@%s IDENTIFIED BY %s",
-                        (settings.db_user, host, settings.db_password))
-            cur.execute("ALTER USER %s@%s IDENTIFIED BY %s",
-                        (settings.db_user, host, settings.db_password))
-            cur.execute(f"GRANT {APP_PRIVILEGES} ON `{db_name}`.* TO %s@%s",
-                        (settings.db_user, host))
+        users = [(settings.db_user, settings.db_password, APP_PRIVILEGES)]
+        if settings.dashboard_db_password:
+            check_identifier(settings.dashboard_db_user)
+            users.append((settings.dashboard_db_user, settings.dashboard_db_password, READER_PRIVILEGES))
+        for user, password, privileges in users:
+            for host in APP_HOSTS:
+                # Values (not identifiers) are passed as parameters, so the password is escaped safely.
+                cur.execute("CREATE USER IF NOT EXISTS %s@%s IDENTIFIED BY %s", (user, host, password))
+                cur.execute("ALTER USER %s@%s IDENTIFIED BY %s", (user, host, password))
+                cur.execute(f"GRANT {privileges} ON `{db_name}`.* TO %s@%s", (user, host))
+            print(f"User `{user}` ready ({privileges} on `{db_name}`)")
         cur.execute("FLUSH PRIVILEGES")
         conn.commit()
-    print(f"Database `{db_name}` and user `{settings.db_user}` are ready.")
+    print(f"Database `{db_name}` is ready.")
 
 
 def create_tables_and_views() -> None:

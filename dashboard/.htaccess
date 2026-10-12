@@ -1,0 +1,2 @@
+# No directory listings (XAMPP enables them by default).
+Options -Indexes
