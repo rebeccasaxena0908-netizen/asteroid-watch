@@ -1,7 +1,7 @@
 # Data quality issue: the same asteroid under two IDs
 
 **Found:** 2026-10-12, while preparing the JPL cross-check (Phase 4).
-**Status:** fixed in the pipeline and cleaned in the database. One case, (2022 OP), is still waiting for a decision (see [Open items](#open-items)).
+**Status:** fixed in the pipeline and fully cleaned in the database. The quality check passes, with 0 duplicates.
 
 ## 1. The problem
 
@@ -82,10 +82,35 @@ The pipeline re-read all 1,934 records from NASA. The transform removed 58 alias
 
 | Check | Before | After |
 |---|---|---|
-| `no_same_object_under_two_ids` | FAIL: 57 (58 with the 60-minute tolerance) | FAIL: **1**, the skipped (2022 OP) |
+| `no_same_object_under_two_ids` | FAIL: 57 (58 with the 60-minute tolerance) | FAIL: **1**, the skipped (2022 OP); see section 4 |
 | all other checks | unchanged | unchanged (`expected_days_fetched` still fails on the 4 days missing from the feed; see `docs/jpl_crosscheck.md`) |
 
-## Open items
+## 4. Second cleanup: (2022 OP)
 
-- **(2022 OP):** old ID `54290860`, approach row 355 on 2025-12-08, is still in the database because deleting it wasn't part of the approved list. Run 7 did record its mapping (`54290860 → 2847304`) in `neo_id_aliases`, so future approaches of `54290860` are stored correctly. Cleaning up the existing row needs approval: `python -m pipeline.cleanup_twins --apply --expect 1,0,1`.
-- **Limitation:** if an old ID is loaded on a day when its numbered twin isn't in the feed, and the alias isn't known yet, the old row goes in under the old ID. The quality check reports it, and `cleanup_twins` (preview first) fixes it.
+(2022 OP) was found only after the 60-minute tolerance was added. Its two listings are 1 minute apart. It wasn't in the first approved list, so the first cleanup skipped it, and it was approved separately afterwards.
+
+1. **Fresh backup:** `backups/asteroid_watch_2026-10-12_before_2022OP_cleanup.sql`, checked by a test restore. All 6 table counts matched.
+2. **Preview:** exactly 1 row. Approach 355 (old ID `54290860`, 2025-12-08 06:29, 23,622,650.0 km) is the same event as approach 356 under `2847304` "847304 (2022 OP)" (06:30, 23,622,502.7 km).
+3. **Apply:** `python -m pipeline.cleanup_twins --apply --expect 1,0,1`.
+
+| | Before | After |
+|---|---|---|
+| asteroids | 1,628 | 1,627 |
+| close_approaches | 1,877 | 1,876 |
+| orbital_data | 578 | 578 (the old ID had no orbit row) |
+| neo_id_aliases | 57 | 57 (the mapping was already recorded by run 7) |
+
+**Quality checks after the second cleanup (pipeline run 8, full backfill range):** `no_same_object_under_two_ids` **PASS, 0 approaches under two IDs**. Run 8 again inserted and updated 0 rows: the transform dropped the 58 alias copies and moved 1 approach, as in run 7. The only failing check is `expected_days_fetched` (4 dates NeoWs leaves out; see `jpl_crosscheck.md`).
+
+## Overall result
+
+| | Original | Final |
+|---|---|---|
+| asteroids | 1,684 | **1,627** |
+| close_approaches | 1,934 | **1,876** |
+| hazardous approaches | 213 | **188** |
+| approaches stored under two IDs | 58 | **0** |
+
+## Limitations
+
+- If an old ID is loaded on a day when its numbered twin isn't in the feed, and the alias isn't known yet, the old row goes in under the old ID. The quality check reports it, and `cleanup_twins` (preview first) fixes it.

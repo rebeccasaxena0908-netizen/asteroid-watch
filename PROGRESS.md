@@ -81,7 +81,7 @@
 - Backup `backups/asteroid_watch_2026-10-12_before_twin_cleanup.sql`, checked by a test restore. `cleanup_twins.py` preview, then apply with `--expect 57,1,56 --skip 54290860`.
 - **Before → after:** asteroids 1,684 → 1,628; close_approaches 1,934 → 1,877; hazardous approaches 213 → 188; orbital_data 605 → 578; aliases 0 → 56. (2017 AE5) Jul 4 approach moved to 2755140.
 - Run 7 (backfill re-run): 0 inserted / 0 updated; `no_same_object_under_two_ids` 57 → **1** (only the skipped (2022 OP)).
-- **Open:** (2022 OP) old id 54290860 (row 355, twin 1 min apart) awaits user approval: `python -m pipeline.cleanup_twins --apply --expect 1,0,1`.
+- (2022 OP) cleaned after separate approval (fresh backup, `--expect 1,0,1`). Run 8: `no_same_object_under_two_ids` **PASS (0)**. Final: 1,627 asteroids, 1,876 approaches.
 - Tests: 78 passing.
 
 ## Phase 5: PHP JSON API (2026-10-12) — reference in `docs/api.md`
