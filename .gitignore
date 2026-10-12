@@ -1,0 +1,18 @@
+# Secrets: never commit
+.env
+.env.*
+!.env.example
+dashboard/includes/config.local.php
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Pipeline data and logs
+data/raw/
+logs/
+
+# macOS
+.DS_Store
