@@ -22,6 +22,13 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - NASA key rate limit is 2,000 requests/hour (from X-RateLimit-Limit header).
 - PHP 8.2.4 with pdo_mysql. Python 3.14 in `.venv`. Mac timezone is Asia/Kolkata (IST).
 
+## Dashboard notes
+- ES modules + import map (index.php). Data text only via textContent (tests enforce no innerHTML with data).
+- Colours: series-1 #3987e5 = not hazardous, series-2 #d95926 = hazardous (validated); status colours always with icon + label.
+- Screenshot testing: drive Chrome over CDP (headless, `--use-angle=metal` for the real GPU); `--virtual-time-budget` hangs because of the animation loop.
+- PHP strings: write "{$var}–" with braces; a UTF-8 character right after $var becomes part of the variable name.
+- XAMPP PHP timezone is Europe/Berlin; all dates come from MySQL (IST), so don't use PHP date().
+
 ## Commands
 `make install | setup-db | check-db | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)

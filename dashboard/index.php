@@ -1,12 +1,311 @@
 <?php
-// Placeholder until Phase 6 (animated dashboard). Confirms Apache + PHP serve the deployed folder.
+/**
+ * Asteroid Watch dashboard page.
+ * The page itself never touches the database: all data comes from api/*.php, so it still loads
+ * (and shows a friendly message) when MySQL is off.
+ */
 header('Content-Type: text/html; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
+/** Asset URL with a cache-busting version (file modification time). */
+function asset(string $path): string
+{
+    $file = __DIR__ . '/' . $path;
+    return htmlspecialchars($path . '?v=' . (is_file($file) ? filemtime($file) : '0'), ENT_QUOTES);
+}
+
+$modules = ['api', 'format', 'ui', 'charts', 'table', 'modal', 'health', 'space'];
+$imports = ['three' => 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js'];
+foreach ($modules as $m) {
+    $imports["./assets/js/$m.js"] = './' . html_entity_decode(asset("assets/js/$m.js"));
+}
+
+function icon(string $name): string
+{
+    // Small inline icons (Lucide-style strokes), decorative unless labelled by nearby text.
+    $paths = [
+        'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        'week' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+        'target' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+        'size' => '<path d="M21 3 3 21M21 3h-6M21 3v6M3 21h6M3 21v-6"/>',
+        'alert' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+        'pipe' => '<path d="M4 7h10a4 4 0 0 1 0 8H8a4 4 0 0 0 0 8"/><circle cx="4" cy="7" r="2"/>',
+        'arrow' => '<path d="M7 17 17 7M8 7h9v9"/>',
+    ];
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . ($paths[$name] ?? '') . '</svg>';
+}
 ?>
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Asteroid Watch</title></head>
-<body style="background:#05070f;color:#cfd8ff;font-family:system-ui,sans-serif;padding:2rem">
-  <h1>Asteroid Watch</h1>
-  <p>Deployment works. PHP <?= htmlspecialchars(PHP_VERSION) ?>. The dashboard arrives in Phase 6.</p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asteroid Watch</title>
+  <meta name="description" content="Near-Earth asteroid close approaches from NASA NeoWs, loaded daily into MySQL by an automated pipeline.">
+  <meta name="theme-color" content="#03050c">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233987e5'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%238fd8ff' stroke-width='2' transform='rotate(-25 16 16)'/%3E%3Ccircle cx='28' cy='10' r='2.5' fill='%23d95926'/%3E%3C/svg%3E">
+
+  <!-- Fonts and libraries: jsdelivr only, exact versions. -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.0.18/500.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/space-grotesk@5.0.18/600.css">
+  <link rel="stylesheet" href="<?= asset('assets/css/dashboard.css') ?>">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script type="importmap"><?= json_encode(['imports' => $imports], JSON_UNESCAPED_SLASHES) ?></script>
+  <script type="module" src="<?= asset('assets/js/main.js') ?>"></script>
+</head>
+<body>
+  <canvas id="space" aria-hidden="true"></canvas>
+  <div class="space-fallback" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scene-label" id="scene-label" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#top" aria-label="Asteroid Watch home">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#8fd8ff"/><stop offset="1" stop-color="#3987e5"/></linearGradient></defs>
+            <circle cx="16" cy="16" r="7" fill="url(#bg)"/>
+            <ellipse cx="16" cy="16" rx="14" ry="5" fill="none" stroke="#8fd8ff" stroke-opacity=".7" stroke-width="1.6" transform="rotate(-25 16 16)"/>
+            <circle cx="28.2" cy="10.2" r="2.4" fill="#d95926"/>
+          </svg>
+          Asteroid Watch
+        </a>
+        <nav class="nav" aria-label="Sections">
+          <a href="#overview">Overview</a>
+          <a href="#charts">Trends</a>
+          <a href="#approaches">Approaches</a>
+          <a href="#pipeline">Pipeline</a>
+        </nav>
+        <a class="run-chip" id="run-chip" href="#pipeline">
+          <span class="status info" id="run-chip-status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>
+            <span class="chip-text">Loading…</span>
+          </span>
+        </a>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- Hero -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <span class="live-pill reveal" style="--i:0"><span class="pulse" aria-hidden="true"></span><span id="hero-pill">Tracking near-Earth objects from NASA NeoWs</span></span>
+          <h1 id="hero-title" class="reveal" style="--i:1">
+            <span class="hero-number" id="hero-week">–</span> asteroids pass Earth this week
+          </h1>
+          <p class="hero-lead reveal" style="--i:2" id="hero-lead">Loading the latest close approaches from the database…</p>
+          <div class="hero-actions reveal" style="--i:3">
+            <a class="btn primary" href="#approaches">Browse close approaches</a>
+            <a class="btn" href="#pipeline">Pipeline health</a>
+          </div>
+          <p class="hero-note reveal" style="--i:4">
+            The 3D scene shows this week's real approaches around Earth. Orbit radius and rock size are
+            log-scaled, so it is not to scale. Hover or tap a rock for its name; drag to rotate.
+          </p>
+        </div>
+        <div class="hero-stage" id="hero-stage" aria-hidden="true">
+          <div class="scene-hint">
+            <span class="key"><span class="dot s1"></span>Not hazardous</span>
+            <span class="key"><span class="dot s2"></span>Potentially hazardous</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stat tiles -->
+      <section id="overview" aria-labelledby="overview-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Overview</span>
+            <h2 id="overview-title">This week at a glance</h2>
+          </div>
+        </div>
+        <div class="cards">
+          <article class="card glass reveal" style="--i:0">
+            <span class="card-label"><?= icon('week') ?>Asteroids passing this week</span>
+            <span class="card-value" id="c-week">–</span>
+            <span class="card-sub" id="c-week-sub">&nbsp;</span>
+          </article>
+          <button class="card glass reveal" style="--i:1" id="c-closest-card" type="button" disabled>
+            <span class="card-label"><?= icon('target') ?>Closest approach this week</span>
+            <span class="card-value" id="c-closest">–</span>
+            <span class="card-sub" id="c-closest-sub">&nbsp;</span>
+            <span class="open-hint"><?= icon('arrow') ?></span>
+          </button>
+          <button class="card glass reveal" style="--i:2" id="c-largest-card" type="button" disabled>
+            <span class="card-label"><?= icon('size') ?>Largest tracked object</span>
+            <span class="card-value" id="c-largest">–</span>
+            <span class="card-sub" id="c-largest-sub">&nbsp;</span>
+            <span class="open-hint"><?= icon('arrow') ?></span>
+          </button>
+          <article class="card glass reveal" style="--i:3">
+            <span class="card-label"><?= icon('alert') ?>Potentially hazardous</span>
+            <span class="card-value" id="c-haz">–</span>
+            <span class="card-sub" id="c-haz-sub">&nbsp;</span>
+          </article>
+          <a class="card glass reveal" style="--i:4; text-decoration:none; color:inherit" href="#pipeline">
+            <span class="card-label"><?= icon('pipe') ?>Last pipeline run</span>
+            <span class="card-value" id="c-run" style="font-size:1.5rem">–</span>
+            <span class="card-sub" id="c-run-sub">&nbsp;</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <section id="charts" aria-labelledby="charts-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Trends</span>
+            <h2 id="charts-title">How close, how big, how fast</h2>
+            <p class="section-sub">Every chart reads from MySQL through the PHP API. Hover a mark for details; click a dot in the scatter to open that asteroid.</p>
+          </div>
+        </div>
+        <div class="chart-toolbar">
+          <span class="label" id="range-label">Date range</span>
+          <div class="segmented" role="group" aria-labelledby="range-label" id="range">
+            <button type="button" data-range="around" aria-pressed="true">Last 30 + next 30 days</button>
+            <button type="button" data-range="past90" aria-pressed="false">Last 90 days</button>
+            <button type="button" data-range="all" aria-pressed="false">Full year</button>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <article class="chart-card wide reveal" style="--i:0">
+            <div class="chart-head">
+              <div><h3 id="daily-title">Close approaches per day</h3><p id="daily-sub">&nbsp;</p></div>
+            </div>
+            <div class="legend" id="daily-legend"></div>
+            <div class="chart-box"><canvas id="chart-daily" role="img" aria-labelledby="daily-title"></canvas></div>
+            <details class="data-view"><summary>Show data</summary><div class="data-scroll" id="daily-table"></div></details>
+          </article>
+          <article class="chart-card narrow reveal" style="--i:1">
+            <div class="chart-head">
+              <div><h3 id="donut-title">Hazardous vs not</h3><p>Share of close approaches in the range</p></div>
+            </div>
+            <div class="legend" id="donut-legend"></div>
+            <div class="chart-box">
+              <canvas id="chart-donut" role="img" aria-labelledby="donut-title"></canvas>
+              <div class="donut-center"><div><div class="big" id="donut-total">–</div><div class="small">approaches</div></div></div>
+            </div>
+            <details class="data-view"><summary>Show data</summary><div class="data-scroll" id="donut-table"></div></details>
+          </article>
+          <article class="chart-card half reveal" style="--i:2">
+            <div class="chart-head">
+              <div><h3 id="size-title">Size distribution</h3><p>Asteroids by maximum estimated diameter</p></div>
+            </div>
+            <div class="legend" id="size-legend"></div>
+            <div class="chart-box"><canvas id="chart-size" role="img" aria-labelledby="size-title"></canvas></div>
+            <details class="data-view"><summary>Show data</summary><div class="data-scroll" id="size-table"></div></details>
+          </article>
+          <article class="chart-card half reveal" style="--i:3">
+            <div class="chart-head">
+              <div><h3 id="scatter-title">Speed vs miss distance</h3><p>One dot per approach · distance on a log scale</p></div>
+            </div>
+            <div class="legend" id="scatter-legend"></div>
+            <div class="chart-box"><canvas id="chart-scatter" role="img" aria-labelledby="scatter-title"></canvas></div>
+            <details class="data-view"><summary>Show data</summary><div class="data-scroll" id="scatter-table"></div></details>
+          </article>
+        </div>
+      </section>
+
+      <!-- Approaches table -->
+      <section id="approaches" aria-labelledby="approaches-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Close approaches</span>
+            <h2 id="approaches-title">Every pass, searchable</h2>
+            <p class="section-sub">1 LD (lunar distance) is the distance from Earth to the Moon, about 384,400 km.</p>
+          </div>
+        </div>
+        <div class="glass table-card reveal">
+          <div class="table-toolbar">
+            <label class="search">
+              <span class="visually-hidden">Search asteroids by name</span>
+              <?= icon('search') ?>
+              <input type="search" id="t-search" placeholder="Search by name, e.g. 2008 TC4" autocomplete="off" maxlength="50">
+            </label>
+            <div class="segmented" role="group" aria-label="Hazard filter" id="t-hazard">
+              <button type="button" data-v="all" aria-pressed="true">All</button>
+              <button type="button" data-v="true" aria-pressed="false">Hazardous</button>
+              <button type="button" data-v="false" aria-pressed="false">Not hazardous</button>
+            </div>
+            <label>
+              <span class="visually-hidden">Time window</span>
+              <select id="t-scope">
+                <option value="upcoming">Upcoming</option>
+                <option value="past30">Past 30 days</option>
+                <option value="all">All dates</option>
+              </select>
+            </label>
+            <span class="result-count" id="t-count" aria-live="polite"></span>
+          </div>
+          <div class="table-scroll">
+            <table id="t-table">
+              <caption class="visually-hidden">Close approaches. Column headers sort the table.</caption>
+              <thead>
+                <tr>
+                  <th data-sort="name"><button type="button">Asteroid <span class="arrow">↕</span></button></th>
+                  <th data-sort="date"><button type="button">Close approach <span class="arrow">↕</span></button></th>
+                  <th data-sort="distance" class="num"><button type="button">Miss distance <span class="arrow">↕</span></button></th>
+                  <th data-sort="velocity" class="num col-optional"><button type="button">Speed <span class="arrow">↕</span></button></th>
+                  <th data-sort="size" class="num col-optional"><button type="button">Size <span class="arrow">↕</span></button></th>
+                  <th>Hazard</th>
+                </tr>
+              </thead>
+              <tbody id="t-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span class="info" id="t-page"></span>
+            <div class="btns">
+              <button class="btn small" type="button" id="t-prev">← Previous</button>
+              <button class="btn small" type="button" id="t-next">Next →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pipeline health -->
+      <section id="pipeline" aria-labelledby="pipeline-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Pipeline health</span>
+            <h2 id="pipeline-title">Extract → transform → load, checked every run</h2>
+            <p class="section-sub">Each run is logged in <code>pipeline_runs</code> with its data quality checks. Open a run to see them.</p>
+          </div>
+        </div>
+        <div class="health-grid">
+          <div class="glass health-summary reveal" id="health-summary"><span class="skeleton"></span></div>
+          <div class="glass runs reveal" style="--i:1" id="runs"><div class="empty"><span class="skeleton"></span></div></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="cols">
+        <div>
+          <p><strong>Asteroid Watch</strong>: a data engineering project. NASA APIs → Python ETL → MySQL (XAMPP) → PHP JSON API → this dashboard.</p>
+          <p>Data: <a href="https://api.nasa.gov/" rel="noopener">NASA NeoWs</a>, cross-checked against the <a href="https://ssd-api.jpl.nasa.gov/doc/cad.html" rel="noopener">JPL Close-Approach Data API</a>.</p>
+        </div>
+        <div>
+          <p>Earth texture: <a href="https://visibleearth.nasa.gov/images/73909" rel="noopener">NASA Blue Marble: Next Generation</a> (NASA Earth Observatory, public domain).</p>
+          <p>"Potentially hazardous" is NASA's classification, not a prediction of impact.</p>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <dialog class="modal" id="asteroid-modal" aria-labelledby="m-title">
+    <div class="modal-inner" id="m-body"></div>
+  </dialog>
+
+  <div class="banner" id="banner" role="alert" hidden>
+    <?= icon('alert') ?>
+    <span class="msg" id="banner-msg"></span>
+    <button class="btn small" type="button" id="banner-retry">Retry</button>
+  </div>
 </body>
 </html>

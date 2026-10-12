@@ -39,7 +39,8 @@ api_run(function () {
     $histogram = [];
     foreach (SIZE_BINS as [$min, $max]) {
         $histogram[] = ['min_m' => $min, 'max_m' => $max,
-                        'label' => $max === null ? "≥ $min m" : "$min–$max m",
+                        // Braces matter: PHP would read "$min–" (UTF-8 dash) as one variable name.
+                        'label' => $max === null ? "≥ {$min} m" : "{$min}–{$max} m",
                         'count' => 0, 'hazardous' => 0];
     }
     foreach ($sizes as $s) {

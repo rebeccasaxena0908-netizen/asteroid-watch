@@ -7,8 +7,8 @@
 | 3. Transform and load | ✅ Done (2026-10-12) |
 | 4. Quality checks and scheduling (+ JPL cross-check) | ✅ Done (2026-10-12) |
 | 5. PHP JSON API | ✅ Done (2026-10-12) |
-| 6. Animated dashboard | ⏳ Next |
-| 7. Docs and submission material | |
+| 6. Animated dashboard | ✅ Done (2026-10-12) |
+| 7. Docs and submission material | ⏳ Next |
 
 ## Phase 1: Setup (2026-10-12)
 - Checked XAMPP: MariaDB 10.4.28 reachable via socket and TCP; Apache + PHP 8.2.4 (pdo_mysql) running.
@@ -92,3 +92,16 @@
 - Fixed: XAMPP's `serialize_precision=100` printed floats like `7622017.520253947935998…` (now -1); SUM() returned strings (now CAST to integers); JSON is compact by default (trends 646 KB → 362 KB), with `?pretty=1` for reading.
 - Tests: `make test` **91 passing** (offline, including 13 PHP CLI tests: lint, validation, MySQL-down message). `make api-test` **10 passing** (live endpoints checked against direct SQL).
 - Live numbers (after the duplicate-ID fix): 1,628 asteroids (176 hazardous), 1,877 approaches (188 hazardous), 578 with orbits; this week 38 approaches (8 hazardous); closest on record (2025 US6) at 0.355 LD; largest 433 Eros (max ~49.4 km).
+
+## Phase 6: Animated dashboard (2026-10-12) — http://localhost/asteroid-watch
+- `dashboard/index.php` + `assets/css/dashboard.css` + ES modules in `assets/js/` (api, format, ui, charts, table, modal, health, space, main). An import map pins three.js and adds cache-busting versions. Libraries come only from jsdelivr, with exact versions: three@0.160.0, chart.js@4.4.1, @fontsource Inter/Space Grotesk 5.0.18.
+- **3D background (`space.js`):** Earth is a procedural shader planet that cross-fades to the local NASA Blue Marble texture (`assets/img/earth_bluemarble_2048.jpg`, 2048×1024, 435 KB, public domain), with day/night terminator, ocean glint, soft atmosphere and 23.4° tilt. Twinkling starfield (2,600; 1,400 on small screens), blurred painted nebula, Moon at 1 LD. **This week's 38 real approaches are the rocks:** orbit radius log-scaled by miss distance, size by diameter, speed by velocity, orange = hazardous. Mouse/touch parallax, drag to rotate with inertia, hover label, click/tap opens the asteroid. Pauses when the tab is hidden, adaptive pixel ratio, on-demand rendering under prefers-reduced-motion.
+- **Glass tiles** with count-up numbers (this week, closest, largest, hazardous, last run); closest/largest open the detail modal.
+- **Charts (Chart.js):** approaches per day (weekly for the full year) with a Today marker and gaps for missing days; hazardous doughnut; size histogram; speed vs miss-distance scatter (log x, click a dot to open it). Palette checked with the dataviz validator on the chart surface (#141a2e): all checks pass (CVD ΔE 26.8). HTML legends and a "Show data" table under every chart.
+- **Table:** server-side search (debounced), hazard filter, time window, sortable headers (aria-sort), pagination, skeleton rows; becomes two-line cards on phones.
+- **Detail modal:** size, next/last approach, miss distance in LD/km/AU, speed, a log "how close" scale with the Moon, an orbit sketch from the period (Kepler's 3rd law) and eccentricity vs Earth's orbit, all stored approaches, JPL link, old-ID note.
+- **Pipeline health:** latest ETL run with an 8-check meter and a stale warning (> 26 h), plus a run history with each check's result.
+- **Errors:** MySQL off shows a banner with Retry, "Database offline" status, and "–" placeholders (never a made-up 0). The 3D scene keeps running.
+- **Verified in Chrome (M2 GPU via Metal and SwiftShader):** 61 fps; desktop 1440×900 and phone 390×844 with no horizontal scroll; reduced motion; 3D hover labels; modal; full-year range; search; MySQL-down state. Bugs found and fixed through screenshots: nebula dither grid, atmosphere ring, rocks over the hero text, PHP `"$min–"` UTF-8 interpolation in size labels, "null" text, Indian vs international digit grouping, partial-week dips.
+- Tests: `make test` **94 passing** (new: libraries only from allowed CDNs with pinned versions, local texture, no innerHTML with data); `make api-test` **10 passing**.
+- **Note:** three.js, Chart.js and fonts load from jsdelivr, so the page needs internet for the 3D scene and charts. Without it, the background falls back to a CSS gradient and the data tables still work.

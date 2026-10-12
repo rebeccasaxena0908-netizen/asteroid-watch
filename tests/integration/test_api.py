@@ -97,6 +97,7 @@ def test_trends_add_up():
     with_size = sql_one("SELECT COUNT(DISTINCT a.neo_id) n FROM asteroids a JOIN close_approaches ca USING (neo_id) "
                         "WHERE a.est_diameter_max_m IS NOT NULL")["n"]
     assert sum(b["count"] for b in d["size_histogram"]) == with_size
+    assert [b["label"] for b in d["size_histogram"]][:2] == ["0–10 m", "10–25 m"]
     assert sum(h["approach_count"] for h in d["hazardous_split"]) == total
 
 
