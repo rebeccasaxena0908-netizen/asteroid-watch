@@ -4,8 +4,8 @@
 |---|---|
 | 1. Setup | ✅ Done (2026-10-12) |
 | 2. Extract | ✅ Done (2026-10-12) |
-| 3. Transform and load | ⏳ Next |
-| 4. Quality checks and scheduling (+ JPL cross-check) | |
+| 3. Transform and load | ✅ Done (2026-10-12) |
+| 4. Quality checks and scheduling (+ JPL cross-check) | ⏳ Next |
 | 5. PHP JSON API | |
 | 6. Animated dashboard | |
 | 7. Docs and submission material | |
@@ -21,10 +21,32 @@
 - Tests: 13 passing (config, socket/TCP selection, secret hiding, SQL file checks).
 - Git repo initialised; public GitHub repo `asteroid-watch` created.
 
-
 ## Phase 2: Extract (2026-10-12)
 - `pipeline/extract.py`: NeoWs feed client. Splits ranges into 7-day chunks; retries 429/5xx/network errors with exponential backoff (2s, 4s, 8s, 16s) or `Retry-After`; logs `X-RateLimit-Remaining`; saves raw JSON to `data/raw/<run date>/feed_<start>_<end>.json`.
 - The API key is redacted from raw files (NeoWs puts it inside `links` URLs) and from all error messages.
 - `tests/fixtures/feed_sample.json`: a real response trimmed to 4 approaches (redacted).
 - Tests: 27 passing (chunking, the 57-call backfill math, retries/backoff, Retry-After, no key in errors or files).
 - Real run (2026-10-05 to 2026-10-19, 15 days): **3 API calls, 15/15 days returned, 86 close approaches (= API element_count), 86 unique asteroids, 16 potentially hazardous.** Rate limit is 2,000/hour (1,997 left after the run). Busiest day: 2026-10-17 with 11 approaches.
+
+## Phase 3: Transform and load (2026-10-12)
+- `pipeline/transform.py`: flattens feed JSON into asteroid and approach rows; string numbers become floats/ints; diameters in meters (km x 1000 fallback); `2026-Oct-19 00:44` becomes a datetime; dedupes by neo_id and (neo_id, epoch_ms); rejects rows with no id, date or epoch.
+- `pipeline/load.py`: upserts with `INSERT ... ON DUPLICATE KEY UPDATE` in batches of 500, in one transaction. Inserted vs updated counts come from row counts before and after plus affected rows.
+- Orbital data: NeoWs Lookup for asteroids with no orbit or one older than 30 days, hazardous first, capped per run (`--orbital-limit`, default 100) to respect the rate limit. Raw responses saved as `neo_<id>.json`.
+- `pipeline/run_pipeline.py`: CLI (`--backfill-days`, `--forward-days`, `--orbital-limit`, `--run-type`, `--dry-run`); every run is logged in `pipeline_runs` (failed runs too, with a redacted error).
+- `make run` (yesterday..+7) and `make backfill` (365..+30, 500 orbit lookups).
+- Tests: 50 passing. A new real Lookup fixture is trimmed and redacted.
+
+**Backfill results (2025-10-12 to 2026-11-11):**
+
+| Table | Rows |
+|---|---|
+| asteroids | 1,684 (201 potentially hazardous) |
+| close_approaches | 1,934 (213 hazardous; 197 upcoming) |
+| orbital_data | 505 (APO 313, ATE 119, AMO 71, IEO 2); the rest fill in on daily runs |
+| pipeline_runs | 3 |
+
+- Run 2 (backfill): 557 API calls (57 feed + 500 lookups), 279 s.
+- **Re-run proof:** run 3 repeated the same backfill: 1,934 records extracted, **0 inserted, 0 updated**, table counts unchanged, 0 duplicate (neo_id, epoch_ms) groups.
+- Spot check: 5 random DB rows match the raw JSON exactly (name, date, km, lunar, km/s, diameter, hazard flag).
+- Finding for Phase 4: 4 of 396 dates are missing from the API response entirely (2026-01-19, 2026-04-16, 2026-04-20, 2026-08-16). Not yet known whether those days had no approaches or are data gaps.
+- Interesting: (2025 US6) has 5 approaches within 0.36–1 lunar distance between 2025-10-12 and 2025-12-02, at only about 2 km/s.

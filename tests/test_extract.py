@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import requests
 
-from pipeline.extract import ExtractError, NeoWsClient, date_chunks, extract_feed
+from pipeline.extract import ExtractError, NeoWsClient, date_chunks, extract_feed, extract_lookups
 
 FIXTURE = Path(__file__).parent / "fixtures" / "feed_sample.json"
 KEY = "TEST_KEY_123"
@@ -168,3 +168,31 @@ def test_extract_feed_makes_one_call_per_chunk(tmp_path):
     assert result.api_calls == 3
     assert len(result.files) == 3
     assert [p["start_date"] for _, p in client.session.requests] == ["2026-10-05", "2026-10-12", "2026-10-19"]
+
+
+# --- extract_lookups -----------------------------------------------------------
+
+def lookup_fixture_with_key():
+    return json.loads((FIXTURE.parent / "lookup_sample.json").read_text().replace("REDACTED", KEY))
+
+
+def test_extract_lookups_saves_raw_and_skips_a_failure(tmp_path):
+    client = make_client([FakeResponse(200, lookup_fixture_with_key()),
+                          FakeResponse(404, text="not found"),
+                          FakeResponse(200, lookup_fixture_with_key())])
+
+    payloads = extract_lookups(client, ["1", "2", "3"], raw_dir=tmp_path, run_date=date(2026, 10, 12))
+
+    assert len(payloads) == 2
+    assert [p.name for p in sorted((tmp_path / "2026-10-12").iterdir())] == ["neo_1.json", "neo_3.json"]
+    assert KEY not in (tmp_path / "2026-10-12" / "neo_1.json").read_text()
+    assert client.session.requests[1][0].endswith("/neo/2")
+
+
+def test_extract_lookups_stops_after_repeated_failures(tmp_path):
+    client = make_client([FakeResponse(403, text="limit")] * 10)
+
+    payloads = extract_lookups(client, [str(i) for i in range(10)], raw_dir=tmp_path)
+
+    assert payloads == []
+    assert client.api_calls == 5

@@ -21,4 +21,9 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - PHP 8.2.4 with pdo_mysql. Python 3.14 in `.venv`. Mac timezone is Asia/Kolkata (IST).
 
 ## Commands
-`make install | setup-db | check-db | test | extract | deploy | undeploy`
+`make install | setup-db | check-db | test | extract | run | backfill | deploy | undeploy`
+
+## Design notes
+- Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.
+- Orbital lookups are capped per run (backfill finds ~1,700 asteroids, above the hourly limit if fetched all at once).
+- NeoWs feed omits some dates entirely (4 of 396 in the backfill).

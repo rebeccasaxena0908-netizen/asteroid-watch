@@ -105,6 +105,9 @@ class NeoWsClient:
     def feed(self, start: date, end: date) -> dict:
         return self.get_json("/feed", {"start_date": start.isoformat(), "end_date": end.isoformat()})
 
+    def lookup(self, neo_id: str) -> dict:
+        return self.get_json(f"/neo/{neo_id}")
+
 
 @dataclass
 class ExtractResult:
@@ -121,11 +124,11 @@ class ExtractResult:
         return (self.end - self.start).days + 1
 
 
-def save_raw(payload: dict, start: date, end: date, client: NeoWsClient, raw_dir: Path, run_date: date) -> Path:
-    """Write one feed response to data/raw/<run date>/feed_<start>_<end>.json, with the key removed."""
+def save_raw(payload: dict, filename: str, client: NeoWsClient, raw_dir: Path, run_date: date) -> Path:
+    """Write one API response to data/raw/<run date>/<filename>, with the key removed."""
     folder = raw_dir / run_date.isoformat()
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"feed_{start.isoformat()}_{end.isoformat()}.json"
+    path = folder / filename
     # NeoWs puts the api_key inside its "links" URLs, so redact the whole text before saving.
     path.write_text(client.redact(json.dumps(payload, indent=1)))
     return path
@@ -140,11 +143,39 @@ def extract_feed(client: NeoWsClient, start: date, end: date,
         log.info("Fetching feed %s to %s", chunk_start, chunk_end)
         payload = client.feed(chunk_start, chunk_end)
         result.payloads.append(payload)
-        result.files.append(save_raw(payload, chunk_start, chunk_end, client, raw_dir, run_date))
+        filename = f"feed_{chunk_start.isoformat()}_{chunk_end.isoformat()}.json"
+        result.files.append(save_raw(payload, filename, client, raw_dir, run_date))
         result.element_count += int(payload.get("element_count", 0))
         result.dates_fetched.update(payload.get("near_earth_objects", {}).keys())
     result.api_calls = client.api_calls - calls_before
     return result
+
+
+MAX_LOOKUP_FAILURES = 5
+
+
+def extract_lookups(client: NeoWsClient, neo_ids: list[str],
+                    raw_dir: Path = RAW_DIR, run_date: date | None = None) -> list[dict]:
+    """Fetch NeoWs Lookup data (orbits) for each asteroid id; saves raw JSON as neo_<id>.json.
+
+    One failed asteroid is skipped; after several failures we stop (the API is probably down
+    or the rate limit is used up) and keep what we have.
+    """
+    run_date = run_date or date.today()
+    payloads, failures = [], 0
+    for neo_id in neo_ids:
+        try:
+            payload = client.lookup(neo_id)
+        except ExtractError as exc:
+            failures += 1
+            log.warning("Lookup failed for %s: %s", neo_id, exc)
+            if failures >= MAX_LOOKUP_FAILURES:
+                log.warning("Stopping orbital lookups after %d failures", failures)
+                break
+            continue
+        save_raw(payload, f"neo_{neo_id}.json", client, raw_dir, run_date)
+        payloads.append(payload)
+    return payloads
 
 
 def main() -> None:

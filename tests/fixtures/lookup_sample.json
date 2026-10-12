@@ -1,0 +1,96 @@
+{
+ "absolute_magnitude_h": 18.27,
+ "close_approach_data": [
+  {
+   "close_approach_date": "1905-10-26",
+   "close_approach_date_full": "1905-Oct-26 08:57",
+   "epoch_date_close_approach": -2025442980000,
+   "miss_distance": {
+    "astronomical": "0.1910360745",
+    "kilometers": "28578589.838361315",
+    "lunar": "74.3130329805",
+    "miles": "17757912.280223547"
+   },
+   "orbiting_body": "Earth",
+   "relative_velocity": {
+    "kilometers_per_hour": "113127.6919854258",
+    "kilometers_per_second": "31.4243588848",
+    "miles_per_hour": "70293.1483894997"
+   }
+  },
+  {
+   "close_approach_date": "1906-10-18",
+   "close_approach_date_full": "1906-Oct-18 06:37",
+   "epoch_date_close_approach": -1994606580000,
+   "miss_distance": {
+    "astronomical": "0.082836172",
+    "kilometers": "12392114.89015364",
+    "lunar": "32.223270908",
+    "miles": "7700103.134214632"
+   },
+   "orbiting_body": "Earth",
+   "relative_velocity": {
+    "kilometers_per_hour": "88385.1842234992",
+    "kilometers_per_second": "24.5514400621",
+    "miles_per_hour": "54919.1162748737"
+   }
+  }
+ ],
+ "designation": "144900",
+ "estimated_diameter": {
+  "feet": {
+   "estimated_diameter_max": 4325.3875913241,
+   "estimated_diameter_min": 1934.3721366469
+  },
+  "kilometers": {
+   "estimated_diameter_max": 1.3183780956,
+   "estimated_diameter_min": 0.5895966084
+  },
+  "meters": {
+   "estimated_diameter_max": 1318.3780956475,
+   "estimated_diameter_min": 589.5966083829
+  },
+  "miles": {
+   "estimated_diameter_max": 0.8192019157,
+   "estimated_diameter_min": 0.3663582341
+  }
+ },
+ "id": "2144900",
+ "is_potentially_hazardous_asteroid": true,
+ "is_sentry_object": false,
+ "links": {
+  "self": "http://api.nasa.gov/neo/rest/v1/neo/2144900?api_key=REDACTED"
+ },
+ "name": "144900 (2004 VG64)",
+ "nasa_jpl_url": "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=2144900",
+ "neo_reference_id": "2144900",
+ "orbital_data": {
+  "aphelion_distance": "1.603408516683898",
+  "ascending_node_longitude": "208.83488693511",
+  "data_arc_in_days": 8000,
+  "eccentricity": ".6556432812371067",
+  "epoch_osculation": "2461200.5",
+  "equinox": "J2000",
+  "first_observation_date": "2004-11-13",
+  "inclination": "36.24349163449727",
+  "jupiter_tisserand_invariant": "5.898",
+  "last_observation_date": "2026-10-09",
+  "mean_anomaly": "290.24172525187",
+  "mean_motion": "1.034160513306844",
+  "minimum_orbit_intersection": ".0274524",
+  "observations_used": 467,
+  "orbit_class": {
+   "orbit_class_type": "ATE",
+   "orbit_class_description": "Near-Earth asteroid orbits similar to that of 2062 Aten",
+   "orbit_class_range": "a (semi-major axis) < 1.0 AU; q (perihelion) > 0.983 AU"
+  },
+  "orbit_determination_date": "2026-10-10 07:37:00",
+  "orbit_id": "125",
+  "orbit_uncertainty": "0",
+  "orbital_period": "348.1084371021475",
+  "perihelion_argument": "43.96008985603054",
+  "perihelion_distance": ".3334924267195886",
+  "perihelion_time": "2461267.954011104205",
+  "semi_major_axis": ".9684504717017434"
+ }
+}
