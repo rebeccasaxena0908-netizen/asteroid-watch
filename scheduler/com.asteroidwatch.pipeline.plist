@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Asteroid Watch daily pipeline run (macOS launchd user agent).
+  Template: `make schedule-install` replaces __PROJECT_DIR__ with the project folder and
+  copies the result to ~/Library/LaunchAgents/. See scheduler/README.md.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.asteroidwatch.pipeline</string>
+
+    <!-- Daily incremental run: yesterday .. +7 days -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PROJECT_DIR__/.venv/bin/python</string>
+        <string>-m</string>
+        <string>pipeline.run_pipeline</string>
+        <string>--backfill-days</string>
+        <string>1</string>
+        <string>--forward-days</string>
+        <string>7</string>
+        <string>--run-type</string>
+        <string>daily</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_DIR__</string>
+
+    <!-- 09:00 every day in the Mac's local time zone (IST). If the Mac is asleep at 09:00,
+         launchd runs the job once when it wakes. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- The pipeline also writes logs/pipeline.log; these capture anything printed before
+         logging starts (e.g. a missing .venv). -->
+    <key>StandardOutPath</key>
+    <string>__PROJECT_DIR__/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_DIR__/logs/launchd.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

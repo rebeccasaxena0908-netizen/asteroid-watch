@@ -1,8 +1,11 @@
 PYTHON  := .venv/bin/python
 HTDOCS  := /Applications/XAMPP/xamppfiles/htdocs
 SITE    := $(HTDOCS)/asteroid-watch
+AGENT   := com.asteroidwatch.pipeline
+AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 
-.PHONY: help install setup-db check-db test extract run backfill deploy undeploy
+.PHONY: help install setup-db check-db test extract run backfill deploy undeploy \
+        schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
 	@echo "make install    create .venv and install Python packages"
@@ -14,6 +17,8 @@ help:
 	@echo "make backfill   full pipeline: last 365 .. +30 days (~57 calls + 500 orbit lookups)"
 	@echo "make deploy     copy dashboard/ to $(SITE)"
 	@echo "make undeploy   remove $(SITE)"
+	@echo "make schedule-install / schedule-uninstall / schedule-status / schedule-run-now"
+	@echo "                daily 09:00 launchd job (see scheduler/README.md)"
 
 install:
 	python3 -m venv .venv
@@ -47,3 +52,24 @@ deploy:
 
 undeploy:
 	rm -rf $(SITE)
+
+# Daily launchd job. See scheduler/README.md.
+schedule-install:
+	mkdir -p logs $(HOME)/Library/LaunchAgents
+	sed "s|__PROJECT_DIR__|$(CURDIR)|g" scheduler/$(AGENT).plist > $(AGENT_PLIST)
+	plutil -lint $(AGENT_PLIST)
+	launchctl bootstrap gui/$$(id -u) $(AGENT_PLIST)
+	@echo "Installed: runs daily at 09:00. Check with: make schedule-status"
+
+schedule-uninstall:
+	-launchctl bootout gui/$$(id -u)/$(AGENT)
+	rm -f $(AGENT_PLIST)
+	@echo "Uninstalled."
+
+schedule-status:
+	@launchctl print gui/$$(id -u)/$(AGENT) 2>/dev/null | grep -E "state =|last exit code|runs =" \
+		|| echo "Not installed."
+
+schedule-run-now:
+	launchctl kickstart gui/$$(id -u)/$(AGENT)
+	@echo "Started. Follow with: tail -f logs/pipeline.log"

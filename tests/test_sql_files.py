@@ -31,3 +31,14 @@ def test_views_file_defines_all_views():
 def test_check_identifier_rejects_unsafe_names(bad):
     with pytest.raises(ValueError):
         check_identifier(bad)
+
+
+def test_launchd_plist_runs_daily_at_nine():
+    import plistlib
+    plist = plistlib.loads((PROJECT_ROOT / "scheduler" / "com.asteroidwatch.pipeline.plist").read_bytes())
+
+    assert plist["Label"] == "com.asteroidwatch.pipeline"
+    assert plist["StartCalendarInterval"] == {"Hour": 9, "Minute": 0}
+    args = plist["ProgramArguments"]
+    assert args[:3] == ["__PROJECT_DIR__/.venv/bin/python", "-m", "pipeline.run_pipeline"]
+    assert args[args.index("--run-type") + 1] == "daily"

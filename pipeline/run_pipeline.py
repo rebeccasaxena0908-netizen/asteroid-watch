@@ -1,4 +1,6 @@
-"""Run the whole pipeline: extract -> transform -> load (+ orbital data), logged in pipeline_runs.
+"""Run the whole pipeline: extract -> transform -> load -> quality checks (+ orbital data).
+
+Every run is logged in pipeline_runs and in logs/pipeline.log.
 
 Examples:
     python -m pipeline.run_pipeline                                   # yesterday .. +7 days
@@ -12,14 +14,17 @@ import argparse
 import logging
 import sys
 from datetime import date, timedelta
+from logging.handlers import RotatingFileHandler
 
-from pipeline.config import load_settings
+from pipeline import quality
+from pipeline.config import PROJECT_ROOT, load_settings
 from pipeline.db import connect
 from pipeline.extract import NeoWsClient, extract_feed, extract_lookups
 from pipeline.load import asteroids_needing_orbits, load_feed_rows, load_orbital_rows
 from pipeline.transform import transform_feeds, transform_orbital
 
 log = logging.getLogger("pipeline")
+LOG_FILE = PROJECT_ROOT / "logs" / "pipeline.log"
 
 
 def parse_args(argv=None):
@@ -54,6 +59,12 @@ def finish_run(conn, run_id: int, status: str, stats: dict, error: str | None = 
     conn.commit()
 
 
+def log_checks(checks) -> None:
+    for c in checks:
+        (log.info if c.passed else log.warning)("Quality %s %s: %s",
+                                                "PASS" if c.passed else "FAIL", c.check_name, c.details)
+
+
 def run(args, settings=None, today: date | None = None) -> dict:
     settings = settings or load_settings()
     if not settings.has_real_api_key:
@@ -70,6 +81,7 @@ def run(args, settings=None, today: date | None = None) -> dict:
         stats = {"api_calls": client.api_calls, "records_extracted": clean.records_seen,
                  "asteroids": len(clean.asteroids), "approaches": len(clean.approaches),
                  "duplicates_removed": clean.duplicates_removed, "rejected": len(clean.rejected)}
+        log_checks(quality.run_checks(extracted, clean))
         log.info("Dry run result: %s", stats)
         return stats
 
@@ -90,6 +102,11 @@ def run(args, settings=None, today: date | None = None) -> dict:
         counts = load_feed_rows(conn, clean.asteroids, clean.approaches)
         stats["rows_inserted"] = counts["close_approaches"].inserted
         stats["rows_updated"] = counts["close_approaches"].updated
+
+        with conn.cursor() as cur:
+            checks = quality.run_checks(extracted, clean, cur)
+        log_checks(checks)
+        stats["quality_failures"] = quality.save_results(conn, run_id, checks)
 
         # Orbital data: only for asteroids missing it or with stale data, capped per run
         if args.orbital_limit > 0:
@@ -113,8 +130,18 @@ def run(args, settings=None, today: date | None = None) -> dict:
         conn.close()
 
 
+def setup_logging() -> None:
+    """Log to the terminal and to logs/pipeline.log (rotated at 1 MB, 5 old files kept)."""
+    LOG_FILE.parent.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(), RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=5)],
+    )
+
+
 def main(argv=None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    setup_logging()
     try:
         run(parse_args(argv))
     except SystemExit:

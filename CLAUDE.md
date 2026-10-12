@@ -22,6 +22,7 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 
 ## Commands
 `make install | setup-db | check-db | test | extract | run | backfill | deploy | undeploy`
+`make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
 - Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.

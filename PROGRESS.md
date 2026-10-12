@@ -50,3 +50,15 @@
 - Spot check: 5 random DB rows match the raw JSON exactly (name, date, km, lunar, km/s, diameter, hazard flag).
 - Finding for Phase 4: 4 of 396 dates are missing from the API response entirely (2026-01-19, 2026-04-16, 2026-04-20, 2026-08-16). Not yet known whether those days had no approaches or are data gaps.
 - Interesting: (2025 US6) has 5 approaches within 0.36–1 lunar distance between 2025-10-12 and 2025-12-02, at only about 2 km/s.
+
+## Phase 4: Quality checks and scheduling (2026-10-12)
+
+### 4a. Quality checks and daily schedule
+- `pipeline/quality.py`: 7 checks run after every load and saved to `quality_results`; the failure count goes to `pipeline_runs.quality_failures`. A failed check is recorded but does not stop the run.
+  - On the run's batch: `not_null_keys`, `miss_distance_positive`, `velocity_positive`, `diameter_min_le_max`, `expected_days_fetched`, `row_count_matches_element_count`.
+  - On the whole table: `no_duplicate_approaches`.
+- Logging: `logs/pipeline.log` (rotating, 1 MB x 5) as well as the terminal.
+- Real results: run 4 (daily range, 9 days): **7/7 passed**. Run 5 (full backfill): **6/7 passed**; `expected_days_fetched` failed: 392 of 396 days returned (missing 2026-01-19, 2026-04-16, 2026-04-20, 2026-08-16).
+- Orbital data now 605 rows (run 4 added 100).
+- `scheduler/com.asteroidwatch.pipeline.plist`: launchd template, daily 09:00 IST, yesterday..+7 days, `--run-type daily`. Install/uninstall: `make schedule-install` / `make schedule-uninstall` (see `scheduler/README.md`). Checked with `plutil -lint` and a dry run under an empty environment (`env -i`). **Not installed yet: the user runs it.**
+- Tests: 59 passing.
