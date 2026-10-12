@@ -4,7 +4,7 @@ SITE    := $(HTDOCS)/asteroid-watch
 AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 
-.PHONY: help install setup-db check-db test api-test extract run backfill crosscheck deploy undeploy \
+.PHONY: help install setup-db check-db test api-test extract run quick-run backfill crosscheck deploy undeploy \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "make api-test   test the deployed PHP API against MySQL (needs XAMPP + make deploy)"
 	@echo "make extract    download last 7 + next 7 days of NeoWs data to data/raw/ (no DB)"
 	@echo "make run        full pipeline: yesterday .. +7 days, logged in pipeline_runs"
+	@echo "make quick-run  same as run but no orbit lookups (a few seconds; good for a live demo)"
 	@echo "make backfill   full pipeline: last 365 .. +30 days (~57 calls + 500 orbit lookups)"
 	@echo "make crosscheck compare a sample with NASA JPL CAD; writes docs/jpl_crosscheck.md"
 	@echo "make deploy     write dashboard DB config, copy dashboard/ to $(SITE)"
@@ -44,6 +45,9 @@ extract:
 
 run:
 	$(PYTHON) -m pipeline.run_pipeline --backfill-days 1 --forward-days 7
+
+quick-run:
+	$(PYTHON) -m pipeline.run_pipeline --backfill-days 1 --forward-days 7 --orbital-limit 0
 
 backfill:
 	$(PYTHON) -m pipeline.run_pipeline --backfill-days 365 --forward-days 30 --orbital-limit 500 --run-type backfill

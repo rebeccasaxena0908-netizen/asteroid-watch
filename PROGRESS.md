@@ -8,7 +8,7 @@
 | 4. Quality checks and scheduling (+ JPL cross-check) | ✅ Done (2026-10-12) |
 | 5. PHP JSON API | ✅ Done (2026-10-12) |
 | 6. Animated dashboard | ✅ Done (2026-10-12) |
-| 7. Docs and submission material | ⏳ Next |
+| 7. Docs and submission material | ✅ Done (2026-10-12) |
 
 ## Phase 1: Setup (2026-10-12)
 - Checked XAMPP: MariaDB 10.4.28 reachable via socket and TCP; Apache + PHP 8.2.4 (pdo_mysql) running.
@@ -114,3 +114,15 @@
 - **Vendored for offline use:** three.js 0.160.0, Chart.js 4.4.1 (published `dist/chart.umd.js`; the earlier `chart.umd.min.js` was generated on the fly by jsdelivr and isn't part of the package), Inter and Space Grotesk (latin + latin-ext) with their MIT/OFL licences in `dashboard/assets/vendor/` (1.0 MB). All 14 files are checked against jsdelivr's published SHA-256 hashes; `vendor/README.md` records source URLs and hashes, and a test re-checks them.
 - **Offline test:** Chrome with jsdelivr/cdnjs/unpkg/Google Fonts blocked: **0 external requests**, 3D scene running, 4 charts drawn, all 4 font weights loaded.
 - Tests: `make test` **96 passing**, `make api-test` **10 passing**.
+
+## Phase 7: Docs and submission material (2026-10-12)
+- `README.md`: overview with live numbers, Mermaid architecture and ER diagrams, setup from zero (10 steps), commands, data-quality table and findings, **real screenshots** (`docs/screenshots/`, 7 JPEGs, ~1.2 MB), project structure, data sources and licences, limitations.
+- `docs/architecture.md` (components, ETL design decisions, security, scheduling, failure handling, testing), `docs/er_diagram.md` (every table, key, index, view, user), `docs/report_outline.md` (college report outline with the project's real numbers and figure list), `docs/demo_script.md` (5-minute script with timings, pre-demo checklist, Plan B, 14 likely viva questions with answers).
+- `make quick-run` for live demos (daily range, no orbit lookups): 2.5 s, 8/8 checks pass.
+- Verified: a fresh `git clone` (no .env, no data) → `make install` → `make test` = 96 passed; all relative links in the docs resolve; all 4 Mermaid diagrams parse and render (mermaid 10.9.1 in Chrome).
+
+## Final state
+- Tables: 1,627 asteroids (176 hazardous), 1,876 approaches (188 hazardous), 578 orbits, 57 ID aliases, 10 runs.
+- Tests: `make test` 96 passing (offline), `make api-test` 10 passing.
+- Acceptance criteria: `make test` passes without internet ✅ · `make run` fetches, transforms, loads and logs; a re-run creates no duplicates ✅ · dashboard loads from MySQL at http://localhost/asteroid-watch and animates at 60 fps on the M2 ✅ · no API key in git history ✅ (scanned before every commit).
+- Still for the user: `make schedule-install` to turn on the daily 09:00 run.
