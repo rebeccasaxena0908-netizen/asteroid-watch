@@ -32,10 +32,13 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - XAMPP PHP timezone is Europe/Berlin; all dates come from MySQL (IST), so don't use PHP date().
 
 ## Commands
-`make install | requirements | lint | hooks | scan-secrets | setup-db | check-db | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
+`make install | requirements | lint | hooks | scan-secrets | setup-db | migrate | check-db | status | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
+- Schema (v2): SQLAlchemy models in pipeline/models.py mirror the DB exactly; Alembic in migrations/ owns every change (sql/*.sql are the frozen v1 baseline, never hand-run). A schema change = model + migration + `asteroid-watch migrate`; `alembic check` must say no differences. Back up (mysqldump as root, test restore) before migrating the live DB.
+- CLI: `asteroid-watch` (pipeline/cli.py) wraps the v1 modules; Makefile calls it. Keep `pretty_exceptions_show_locals=False` (locals can include passwords).
+- The v1 loader stays on PyMySQL (affected-rows upsert counting); the models are for schema, CLI and API.
 - Tooling: deps live in pyproject.toml; requirements.txt is generated (never hand-edit). ruff is lint-only on v1 code (no `ruff format`). pre-commit hooks are local (.venv tools).
 - Daily launchd job: when the lid is closed, macOS DarkWakes start the job with no network, then sleep mid-run (runs 13, 20 failed; runs 17–19 took hours). Check `pmset -g log` when diagnosing. Fix planned in Phase 3.
 - Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.

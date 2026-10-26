@@ -1,6 +1,6 @@
 # Database: ER diagram and schema
 
-Database `asteroid_watch` (MariaDB 10.4 in XAMPP, InnoDB, `utf8mb4`). The definitions are in [`sql/01_schema.sql`](../sql/01_schema.sql), [`sql/02_views.sql`](../sql/02_views.sql) and [`sql/03_migrations.sql`](../sql/03_migrations.sql); all three are safe to re-run.
+Database `asteroid_watch` (MariaDB 10.4 in XAMPP, InnoDB, `utf8mb4`). **From v2, the schema is managed by Alembic migrations (`migrations/`) and mirrored by SQLAlchemy models (`pipeline/models.py`); see [schema_and_cli.md](schema_and_cli.md).** The v1 definitions are in [`sql/01_schema.sql`](../sql/01_schema.sql), [`sql/02_views.sql`](../sql/02_views.sql) and [`sql/03_migrations.sql`](../sql/03_migrations.sql); all three are safe to re-run.
 
 ```mermaid
 erDiagram
@@ -55,6 +55,7 @@ erDiagram
     pipeline_runs {
         int run_id PK
         varchar run_type "manual/daily/backfill/crosscheck"
+        varchar source "neows/jpl_cad/... (v2)"
         datetime started_at "indexed"
         datetime finished_at
         varchar status "running/success/failed"
@@ -138,6 +139,7 @@ See [duplicate_ids.md](duplicate_ids.md) for why this table exists.
 | Column | Notes |
 |---|---|
 | `run_id` (PK), `run_type`, `status` | `run_type` is manual / daily / backfill / crosscheck; `status` is running / success / failed |
+| `source` | v2: the data source the run fetched from (`neows`, `jpl_cad`, …); added by Alembic migration 0002 |
 | `started_at` (indexed), `finished_at` | Duration = difference |
 | `date_range_start`, `date_range_end` | The range requested from NASA |
 | `api_calls` | Every HTTP attempt, retries included |

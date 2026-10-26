@@ -134,7 +134,8 @@
 | Phase | Status |
 |---|---|
 | 0. Baseline and tooling | ✅ Done (2026-10-27) |
-| 1. Python foundation (SQLAlchemy, Alembic, Typer) | ⏳ Next |
+| 1. Python foundation (SQLAlchemy, Alembic, Typer) | ✅ Done (2026-10-27) |
+| 2. FastAPI replaces PHP | ⏳ Next |
 
 Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 → 12 → 13.
 
@@ -162,3 +163,22 @@ Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 →
 - The daily launchd job is unchanged and still imports correctly under `env -i` (as launchd runs it).
 - Docs: `docs/v2_plan.md` (order, decisions, memory/disk estimates, final folder structure), `docs/tooling.md` (how it works).
 - Tests: `make test` **101 passed** (96 v1 + 5 tooling), `make api-test` **10 passed**.
+
+## v2 Phase 1: Python foundation (2026-10-27) — how it works: `docs/schema_and_cli.md`
+- **SQLAlchemy 2.x models** (`pipeline/models.py`, SQLAlchemy 2.1.6, 2.0-style API): all 6 tables with exact types, NULLs, defaults (incl. ON UPDATE CURRENT_TIMESTAMP), keys, index/FK names, ON DELETE CASCADE, InnoDB/utf8mb4. Before the migration, `alembic check` against the live DB (types and server defaults compared) showed exactly one difference: the new `source` column. After it: **no differences**.
+- `pipeline.db.engine()`: SQLAlchemy engine with the v1 socket-or-TCP rule; password in connect_args, never in the URL.
+- **Alembic** (`alembic.ini` without credentials, `migrations/`): `0001_v1_baseline` runs the v1 SQL files (now marked frozen); `0002_pipeline_runs_source` adds `source VARCHAR(20) NOT NULL DEFAULT 'neows'` after `run_type` and sets cross-check runs to `jpl_cad`.
+  - Live DB: backup `backups/asteroid_watch_2026-10-27_before_alembic.sql` (857 KB, test restore: 6/6 table counts and 5 views match) → `alembic stamp 0001_v1_baseline` → `alembic upgrade head` (ran 0002 only). Row counts unchanged: 1,627 / 1,876 / 1,078 / 57 / 21 / 121. Runs by source: neows 20, jpl_cad 1.
+  - Fresh-DB test: both migrations on an empty throwaway database → 6 tables + alembic_version + 5 views, `alembic check` clean; dropped.
+  - `setup_db.py` now creates the DB and users, then runs `alembic upgrade head` (instead of the SQL files).
+- Pipeline writes `source`: `neows` for ETL runs, `jpl_cad` for cross-checks. PHP API output unchanged (its queries list columns explicitly).
+- **Typer CLI `asteroid-watch`** (`pipeline/cli.py`): `run`, `quick-run`, `backfill`, `crosscheck`, `status`, `test [--api]`, `migrate`, `setup-db`, `check-db`, `serve` (placeholder until Phase 2: prints how to use the XAMPP dashboard, exit 1). Makefile targets call it; options identical to v1 (tested). Typer's local-variable display in tracebacks is off (could show passwords).
+- `asteroid-watch status` now: schema 0002 (up to date); neows last success run 22; jpl_cad last success run 6 (14 days ago, 3 findings).
+- Live check: `make quick-run` via the CLI = **run 22**: 2 API calls, 51 → 49 records, 0 inserted, 0 updated, 8/8 checks passed, `source = neows`. The launchd command (`python -m pipeline.run_pipeline`) is unchanged and imports fine under `env -i`.
+- Tests: `make test` **118 passed** (101 + 17: models vs SQL files, migration history and offline SQL, CLI option mapping, status without MySQL, no locals in tracebacks). `make api-test` **13 passed** (10 API + 3 new: DB at head, models = live DB, status).
+
+### Phase 3 requirements added by the user (2026-10-27)
+- Before extracting, wait until the network is actually reachable: check every few minutes for up to 2 hours, instead of failing within seconds.
+- If XAMPP MySQL isn't running: record the failure in a local log file and retry later the same day.
+- Move the daily time from 09:00 to an evening time (IST) when the Mac is usually open; keep the catch-up-on-wake behaviour. **Exact time still to be confirmed by the user** (the request said "[YOUR TIME, e.g. 19:00]").
+- No `pmset`.

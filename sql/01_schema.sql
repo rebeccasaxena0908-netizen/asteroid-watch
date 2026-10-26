@@ -1,3 +1,5 @@
+-- FROZEN (v2): this is the v1 baseline, run by Alembic migration 0001_v1_baseline.
+-- Don't edit it or run it by hand: schema changes go in migrations/versions/.
 -- Asteroid Watch: core schema (MySQL / MariaDB, InnoDB, utf8mb4)
 -- Safe to re-run: every table uses CREATE TABLE IF NOT EXISTS.
 -- The database itself is created by pipeline/setup_db.py.

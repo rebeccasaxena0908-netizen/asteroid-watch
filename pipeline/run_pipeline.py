@@ -40,8 +40,8 @@ def parse_args(argv=None):
 
 def start_run(conn, run_type: str, start: date, end: date) -> int:
     with conn.cursor() as cur:
-        cur.execute("INSERT INTO pipeline_runs (run_type, status, date_range_start, date_range_end) "
-                    "VALUES (%s, 'running', %s, %s)", (run_type, start, end))
+        cur.execute("INSERT INTO pipeline_runs (run_type, source, status, date_range_start, date_range_end) "
+                    "VALUES (%s, 'neows', 'running', %s, %s)", (run_type, start, end))
         run_id = cur.lastrowid
     conn.commit()
     return run_id

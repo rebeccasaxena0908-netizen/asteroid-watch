@@ -1,3 +1,5 @@
+-- FROZEN (v2): this is the v1 baseline, run by Alembic migration 0001_v1_baseline.
+-- Don't edit it or run it by hand: schema changes go in migrations/versions/.
 -- Asteroid Watch: dashboard views (the "gold" layer).
 -- Safe to re-run: CREATE OR REPLACE VIEW.
 

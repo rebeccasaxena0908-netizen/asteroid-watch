@@ -15,7 +15,13 @@ dependencies = [
     "requests>=2.32,<3",
     "python-dotenv>=1.0,<2",
     "PyMySQL>=1.1,<2",
+    "SQLAlchemy>=2.0,<2.2",
+    "alembic>=1.13,<2",
+    "typer>=0.12,<1",
 ]
+
+[project.scripts]
+asteroid-watch = "pipeline.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -49,6 +55,6 @@ known-first-party = ["pipeline", "scripts"]
 [tool.mypy]
 # Non-strict to start: check what is annotated, don't require annotations everywhere.
 python_version = "3.12"
-files = ["pipeline", "tests", "scripts"]
+files = ["pipeline", "tests", "scripts", "migrations"]
 ignore_missing_imports = true
 warn_unused_ignores = true

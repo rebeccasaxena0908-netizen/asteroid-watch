@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pymysql
 from pymysql.cursors import DictCursor
+from sqlalchemy import URL, Engine, create_engine
 
 from pipeline.config import Settings, load_settings
 
@@ -32,6 +33,18 @@ def connection_args(settings: Settings, use_database: bool = True) -> dict:
 
 def connect(settings: Settings | None = None, use_database: bool = True):
     return pymysql.connect(**connection_args(settings or load_settings(), use_database))
+
+
+
+def engine(settings: Settings | None = None) -> Engine:
+    """SQLAlchemy engine with the same connection rules as connect() (socket first, then TCP).
+
+    The password goes in connect_args, not the URL, so it never appears in a printed URL.
+    """
+    args = connection_args(settings or load_settings())
+    for key in ("cursorclass", "autocommit"):  # PyMySQL-only options; SQLAlchemy manages these
+        args.pop(key)
+    return create_engine(URL.create("mysql+pymysql"), connect_args=args, pool_pre_ping=True)
 
 
 def split_sql(text: str) -> list[str]:

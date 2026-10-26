@@ -1,10 +1,11 @@
 PYTHON  := .venv/bin/python
+CLI     := .venv/bin/asteroid-watch
 HTDOCS  := /Applications/XAMPP/xamppfiles/htdocs
 SITE    := $(HTDOCS)/asteroid-watch
 AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 
-.PHONY: help install requirements lint hooks scan-secrets setup-db check-db test api-test extract run quick-run backfill crosscheck deploy undeploy \
+.PHONY: help install requirements lint hooks scan-secrets setup-db migrate check-db status test api-test extract run quick-run backfill crosscheck deploy undeploy \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
@@ -14,7 +15,10 @@ help:
 	@echo "make hooks      install the git pre-commit hooks (secret scan, lint, type check)"
 	@echo "make scan-secrets  check every tracked file for secrets from .env"
 	@echo "make setup-db   create database, app user, tables and views (needs .env)"
+	@echo "make migrate    apply database migrations (Alembic)"
 	@echo "make check-db   test the MySQL connection and list tables"
+	@echo "make status     last run per source, row counts, schema version"
+	@echo "               (all targets below call the asteroid-watch CLI; see: $(CLI) --help)"
 	@echo "make test       run unit tests (no internet or database needed)"
 	@echo "make api-test   test the deployed PHP API against MySQL (needs XAMPP + make deploy)"
 	@echo "make extract    download last 7 + next 7 days of NeoWs data to data/raw/ (no DB)"
@@ -46,31 +50,37 @@ scan-secrets:
 	git ls-files -z | xargs -0 $(PYTHON) -m scripts.check_secrets && echo "No secrets found."
 
 setup-db:
-	$(PYTHON) -m pipeline.setup_db
+	$(CLI) setup-db
+
+migrate:
+	$(CLI) migrate
 
 check-db:
-	$(PYTHON) -m pipeline.db
+	$(CLI) check-db
+
+status:
+	$(CLI) status
 
 test:
-	$(PYTHON) -m pytest -q --ignore=tests/integration
+	$(CLI) test
 
 api-test:
-	$(PYTHON) -m pytest -q tests/integration
+	$(CLI) test --api
 
 extract:
 	$(PYTHON) -m pipeline.extract --backfill-days 7 --forward-days 7
 
 run:
-	$(PYTHON) -m pipeline.run_pipeline --backfill-days 1 --forward-days 7
+	$(CLI) run
 
 quick-run:
-	$(PYTHON) -m pipeline.run_pipeline --backfill-days 1 --forward-days 7 --orbital-limit 0
+	$(CLI) quick-run
 
 backfill:
-	$(PYTHON) -m pipeline.run_pipeline --backfill-days 365 --forward-days 30 --orbital-limit 500 --run-type backfill
+	$(CLI) backfill
 
 crosscheck:
-	$(PYTHON) -m pipeline.jpl_crosscheck --sample 50 --days 10
+	$(CLI) crosscheck
 
 # Copy, not symlink: Apache runs as user 'daemon', which cannot read inside
 # /Users/<you> (home folder is drwxr-x---), so a symlink gives HTTP 403.

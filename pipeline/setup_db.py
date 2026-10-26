@@ -1,4 +1,4 @@
-"""One-time database setup: creates the database and the app user, then runs the SQL files.
+"""One-time database setup: creates the database and users, then applies the migrations.
 
 Connects as the MySQL admin user (XAMPP default: root with no password).
 Override with DB_ROOT_USER / DB_ROOT_PASSWORD environment variables if yours differs.
@@ -9,10 +9,11 @@ Usage: python -m pipeline.setup_db
 import os
 from dataclasses import replace
 
-from pipeline.config import PROJECT_ROOT, load_settings
-from pipeline.db import check_identifier, connect, run_sql_file
+from alembic import command
+from alembic.config import Config
 
-SQL_FILES = [PROJECT_ROOT / "sql" / f for f in ("01_schema.sql", "02_views.sql", "03_migrations.sql")]
+from pipeline.config import PROJECT_ROOT, load_settings
+from pipeline.db import check_identifier, connect
 
 # The app user gets only what the pipeline and dashboard need, and only on this database.
 # DROP is required by MariaDB for CREATE OR REPLACE VIEW.
@@ -59,13 +60,19 @@ def create_database_and_user() -> None:
     print(f"Database `{db_name}` is ready.")
 
 
-def create_tables_and_views() -> None:
-    with connect() as conn:
-        for path in SQL_FILES:
-            count = run_sql_file(conn, path)
-            print(f"Ran {path.name}: {count} statements")
+def alembic_config() -> Config:
+    return Config(str(PROJECT_ROOT / "alembic.ini"))
+
+
+def migrate(revision: str = "head") -> None:
+    """Create or update tables and views with Alembic (migrations/versions/).
+
+    On an empty database the first migration runs the v1 SQL files; later ones apply
+    each schema change in order. Already-applied migrations are skipped.
+    """
+    command.upgrade(alembic_config(), revision)
 
 
 if __name__ == "__main__":
     create_database_and_user()
-    create_tables_and_views()
+    migrate()

@@ -99,8 +99,8 @@ def run_crosscheck(sample_size: int, n_days: int) -> None:
         dist_max = round(cur.fetchone()["m"] + 0.0005, 3)   # NeoWs feed's distance limit, rounded up
         sample = sample_approaches(cur, sample_size)
         days, neows_counts = coverage_days(cur, n_days)
-        cur.execute("INSERT INTO pipeline_runs (run_type, status, date_range_start, date_range_end) "
-                    "VALUES ('crosscheck', 'running', %s, %s)",
+        cur.execute("INSERT INTO pipeline_runs (run_type, source, status, date_range_start, date_range_end) "
+                    "VALUES ('crosscheck', 'jpl_cad', 'running', %s, %s)",
                     (min(r["approach_date"] for r in sample), max(r["approach_date"] for r in sample)))
         run_id = cur.lastrowid
     conn.commit()
@@ -216,11 +216,11 @@ def write_report(run_id, compared, coverage, checks, dist_max) -> None:
     REPORT.write_text("\n".join(lines) + "\n")
 
 
-def main() -> None:
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description="Cross-check stored approaches against JPL CAD")
     parser.add_argument("--sample", type=int, default=50, help="approaches to compare (default 50)")
     parser.add_argument("--days", type=int, default=10, help="random days for the coverage check (default 10)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     run_crosscheck(args.sample, args.days)
 

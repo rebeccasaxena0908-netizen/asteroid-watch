@@ -1,3 +1,5 @@
+-- FROZEN (v2): this is the v1 baseline, run by Alembic migration 0001_v1_baseline.
+-- Don't edit it or run it by hand: schema changes go in migrations/versions/.
 -- Asteroid Watch: changes to tables that already exist. Safe to re-run (IF NOT EXISTS).
 
 -- Approach records left after deduplication (records_extracted minus duplicate listings),
