@@ -85,7 +85,7 @@ def test_serve_runs_uvicorn_with_one_worker_on_localhost(monkeypatch):
     assert result.exit_code == 0, result.output
     app, kwargs = calls[0]
     assert app == "api.main:app"
-    assert (kwargs["host"], kwargs["port"], kwargs["workers"]) == ("127.0.0.1", 8000, 1)
+    assert (kwargs["host"], kwargs["port"], kwargs["workers"]) == ("127.0.0.1", 8010, 1)
 
 
 def test_status_without_mysql_gives_a_short_message(monkeypatch):
@@ -114,3 +114,14 @@ def test_age_text_and_staleness():
     assert not cli.is_stale(now - timedelta(hours=25), now)
     assert cli.is_stale(now - timedelta(hours=27), now)
     assert cli.is_stale(None, now)
+
+
+def test_launchd_agent_uses_the_cli_default_port():
+    import plistlib
+
+    from pipeline.config import PROJECT_ROOT
+
+    plist = plistlib.loads((PROJECT_ROOT / "scheduler" / "com.asteroidwatch.api.plist").read_bytes())
+    args = plist["ProgramArguments"]
+    assert args[args.index("--port") + 1] == str(cli.DEFAULT_PORT) == "8010"
+    assert args[args.index("--host") + 1] == "127.0.0.1"

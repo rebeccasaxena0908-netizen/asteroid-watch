@@ -24,7 +24,7 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 
 ## Dashboard notes
 - Everything loads locally: three.js/Chart.js/fonts are vendored in dashboard/assets/vendor (hashes in its README, checked by tests). No CDN at runtime.
-- Served by FastAPI at http://localhost:8000 (dashboard/index.html, static; assets sent with Cache-Control: no-cache instead of ?v= URLs). ES modules + import map (only `three`). Data text only via textContent (tests enforce no innerHTML with data).
+- Served by FastAPI at http://localhost:8010 (dashboard/index.html, static; assets sent with Cache-Control: no-cache instead of ?v= URLs). ES modules + import map (only `three`). Data text only via textContent (tests enforce no innerHTML with data).
 - Colours: series-1 #3987e5 = not hazardous, series-2 #d95926 = hazardous (validated); status colours always with icon + label.
 - zsh: no word splitting of $var (use arrays or separate vars); BSD sed doesn't turn \n into a newline in replacements.
 - Screenshot testing: drive Chrome over CDP (headless, `--use-angle=metal` for the real GPU); `--virtual-time-budget` hangs because of the animation loop.
@@ -37,7 +37,7 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
-- Port 8000 is also used by the user's other project (~/Desktop/Remembrance backend, uvicorn). Never kill it; test on another port (`asteroid-watch serve --port 8010`).
+- Asteroid Watch uses port 8010 (user's decision): port 8000 belongs to the user's other project (~/Desktop/Remembrance backend, uvicorn). Never touch it. For throwaway test servers use another port (e.g. 8011) so an installed API agent on 8010 isn't disturbed.
 - FastAPI value types mirror PHP's PDO: DECIMAL→string, DATE/DATETIME→'YYYY-MM-DD[ HH:MM:SS]', BOOLEAN→true/false (api/db.py). Response models are strict.
 - Test client: httpx2 (Starlette deprecates httpx). /docs uses vendored Swagger UI 5.33.2 (api/static/swagger-ui, hashes in its README).
 - Schema (v2): SQLAlchemy models in pipeline/models.py mirror the DB exactly; Alembic in migrations/ owns every change (sql/*.sql are the frozen v1 baseline, never hand-run). A schema change = model + migration + `asteroid-watch migrate`; `alembic check` must say no differences. Back up (mysqldump as root, test restore) before migrating the live DB.

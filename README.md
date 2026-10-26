@@ -59,7 +59,7 @@ flowchart LR
         V[("views<br/>(gold)")]
     end
 
-    subgraph WEB["FastAPI (uvicorn, localhost:8000)"]
+    subgraph WEB["FastAPI (uvicorn, localhost:8010)"]
         API["api/<br/>JSON + CSV/Excel, bound parameters,<br/>read-only DB user"]
         UI["Dashboard<br/>Three.js + Chart.js"]
     end
@@ -207,7 +207,7 @@ Tested on macOS (Apple M2) with XAMPP 8.2 (MariaDB 10.4, PHP 8.2) and Python 3.1
    ```bash
    make serve                 # Ctrl-C to stop; or keep it running: make api-install
    ```
-   Open **<http://localhost:8000>** (API docs at <http://localhost:8000/docs>).
+   Open **<http://localhost:8010>** (API docs at <http://localhost:8010/docs>).
 10. **Schedule the daily run** (09:00 local time):
     ```bash
     make schedule-install      # make schedule-status / schedule-uninstall
@@ -229,7 +229,7 @@ Tested on macOS (Apple M2) with XAMPP 8.2 (MariaDB 10.4, PHP 8.2) and Python 3.1
 | `make crosscheck` | Compare a sample with NASA JPL; writes `docs/jpl_crosscheck.md` |
 | `make test` | Unit tests (offline) |
 | `make api-test` | Checks the API's answers against direct SQL, and the schema against the models (needs XAMPP MySQL) |
-| `make serve` | Dashboard + API at `http://localhost:8000` (docs at `/docs`) |
+| `make serve` | Dashboard + API at `http://localhost:8010` (docs at `/docs`) |
 | `make parity-test` | Legacy PHP API vs FastAPI, byte for byte (needs `make legacy-deploy`) |
 | `asteroid-watch --help` | Every command (v2 CLI); `asteroid-watch status` shows the last run of each source |
 | `make check-db` | Connection test plus row counts |
@@ -298,7 +298,7 @@ asteroid-watch/
 │   └── dashboard_config.py writes the dashboard's read-only DB config
 ├── sql/                   01_schema.sql, 02_views.sql, 03_migrations.sql
 ├── api/                   FastAPI: summary, approaches, asteroid, trends, runs, CSV/Excel exports
-├── dashboard/             served by FastAPI at http://localhost:8000
+├── dashboard/             served by FastAPI at http://localhost:8010
 │   ├── index.html
 │   └── assets/            css/, js/ (ES modules), img/, vendor/ (three.js, Chart.js, fonts)
 ├── legacy/php/            the retired v1 PHP API (kept for the parity tests)

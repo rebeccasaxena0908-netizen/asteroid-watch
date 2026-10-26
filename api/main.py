@@ -1,6 +1,6 @@
 """The FastAPI app: JSON API under /api, the dashboard at /, interactive docs at /docs.
 
-Run it with `asteroid-watch serve` (uvicorn, 1 worker, http://localhost:8000).
+Run it with `asteroid-watch serve` (uvicorn, 1 worker, http://localhost:8010).
 Errors are JSON in the same form and with the same status codes as the PHP API:
 400 bad input, 404 not found, 405 wrong method, 503 MySQL off, 500 anything else
 (details only in the server log).

@@ -29,7 +29,7 @@ help:
 	@echo "make quick-run  same as run but no orbit lookups (a few seconds; good for a live demo)"
 	@echo "make backfill   full pipeline: last 365 .. +30 days (~57 calls + 500 orbit lookups)"
 	@echo "make crosscheck compare a sample with NASA JPL CAD; writes docs/jpl_crosscheck.md"
-	@echo "make serve      dashboard + API at http://localhost:8000 (docs at /docs); Ctrl-C to stop"
+	@echo "make serve      dashboard + API at http://localhost:8010 (docs at /docs); Ctrl-C to stop"
 	@echo "make api-install / api-uninstall / api-status / api-restart"
 	@echo "                keep the server running with launchd (see scheduler/README.md)"
 	@echo "make legacy-deploy / legacy-undeploy   the retired PHP API on XAMPP (for parity tests)"
@@ -108,13 +108,13 @@ legacy-deploy:
 legacy-undeploy:
 	rm -rf $(SITE)
 
-# API server kept running by launchd (http://localhost:8000). See scheduler/README.md.
+# API server kept running by launchd (http://localhost:8010). See scheduler/README.md.
 api-install:
 	mkdir -p logs $(HOME)/Library/LaunchAgents
 	sed "s|__PROJECT_DIR__|$(CURDIR)|g" scheduler/$(API_AGENT).plist > $(API_PLIST)
 	plutil -lint $(API_PLIST)
 	launchctl bootstrap gui/$$(id -u) $(API_PLIST)
-	@echo "Installed: http://localhost:8000 (starts at login). Check with: make api-status"
+	@echo "Installed: http://localhost:8010 (starts at login). Check with: make api-status"
 
 api-uninstall:
 	-launchctl bootout gui/$$(id -u)/$(API_AGENT)

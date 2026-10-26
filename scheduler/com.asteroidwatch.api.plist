@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Asteroid Watch API + dashboard server (macOS launchd user agent): http://localhost:8000
+  Asteroid Watch API + dashboard server (macOS launchd user agent): http://localhost:8010
   Template: `make api-install` replaces __PROJECT_DIR__ with the project folder and copies the
   result to ~/Library/LaunchAgents/. See scheduler/README.md.
 -->
@@ -18,7 +18,7 @@
         <string>--host</string>
         <string>127.0.0.1</string>
         <string>--port</string>
-        <string>8000</string>
+        <string>8010</string>
     </array>
 
     <key>WorkingDirectory</key>

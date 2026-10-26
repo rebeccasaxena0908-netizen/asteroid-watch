@@ -1,6 +1,6 @@
 # Dashboard JSON API (FastAPI)
 
-Base URL: `http://localhost:8000/api/`. The same server shows the dashboard at `http://localhost:8000/` and interactive docs at **`http://localhost:8000/docs`**, where you can try every endpoint. Start it with `asteroid-watch serve` (or `make serve`), or keep it running with launchd (`make api-install`, see `scheduler/README.md`).
+Base URL: `http://localhost:8010/api/`. The same server shows the dashboard at `http://localhost:8010/` and interactive docs at **`http://localhost:8010/docs`**, where you can try every endpoint. Start it with `asteroid-watch serve` (or `make serve`), or keep it running with launchd (`make api-install`, see `scheduler/README.md`).
 
 Everything is read from MySQL with a **read-only** user (`asteroid_reader`: SELECT and SHOW VIEW on `asteroid_watch` only). The server listens on `127.0.0.1` only, so other machines can't reach it.
 

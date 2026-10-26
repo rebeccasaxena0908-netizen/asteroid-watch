@@ -1,6 +1,6 @@
 """Pydantic response models: the exact JSON shape of every endpoint.
 
-They document the API (http://localhost:8000/docs) and validate every response before it
+They document the API (http://localhost:8010/docs) and validate every response before it
 is sent. Field order is the JSON key order. Types match the PHP API: dates are strings
 ("2026-10-12", "2026-10-12 06:30:00") and absolute_magnitude_h is a string ("21.650"),
 because that's how PHP's PDO returned DATE, DATETIME and DECIMAL columns.

@@ -7,7 +7,7 @@
     asteroid-watch status       last run per source, row counts, schema version
     asteroid-watch test         offline tests (--api: integration tests, --parity: PHP vs FastAPI)
     asteroid-watch migrate      apply database migrations (Alembic)
-    asteroid-watch serve        the API and dashboard at http://localhost:8000
+    asteroid-watch serve        the API and dashboard at http://localhost:8010
 
 Each command calls the existing module (pipeline.run_pipeline, pipeline.jpl_crosscheck, ...),
 so `python -m pipeline.run_pipeline` keeps working exactly as before.
@@ -32,6 +32,8 @@ app = typer.Typer(help="Asteroid Watch: NASA near-Earth data pipeline.", no_args
                   pretty_exceptions_show_locals=False, add_completion=False)
 console = Console()
 
+# 8010, not 8000: port 8000 is often taken by other local dev servers.
+DEFAULT_PORT = 8010
 STALE_AFTER = timedelta(hours=26)  # same threshold as the dashboard's warning
 TABLES = [Asteroid, CloseApproach, OrbitalData, NeoIdAlias, PipelineRun, QualityResult]
 
@@ -205,10 +207,10 @@ def check_db() -> None:
 @app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="Address to listen on (127.0.0.1 = this Mac only)."),
-    port: int = typer.Option(8000, help="Port."),
+    port: int = typer.Option(DEFAULT_PORT, help="Port."),
     reload: bool = typer.Option(False, help="Restart when code changes (development)."),
 ) -> None:
-    """Start the API and dashboard (FastAPI + uvicorn, 1 worker): http://localhost:8000"""
+    """Start the API and dashboard (FastAPI + uvicorn, 1 worker): http://localhost:8010"""
     import uvicorn
 
     console.print(f"Dashboard: http://localhost:{port}/   API docs: http://localhost:{port}/docs")
