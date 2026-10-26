@@ -1,4 +1,5 @@
-// Close-approaches table: server-side search, filter, sort and pagination via api/approaches.php.
+// Close-approaches table: server-side search, filter, sort and pagination via api/approaches.
+// The CSV/Excel links download every page of the same filtered, sorted list.
 
 import { api } from './api.js';
 import { el, fmtInt, fmt2, fmt1, fmtKm, fmtDate, fmtTime, fmtDiameter, hazardBadge, addDays } from './format.js';
@@ -13,6 +14,7 @@ export function setupTable({ today, onPick, onError }) {
   const pageInfo = document.getElementById('t-page');
   const prev = document.getElementById('t-prev');
   const next = document.getElementById('t-next');
+  const downloads = [['t-csv', 'api/approaches.csv'], ['t-xlsx', 'api/approaches.xlsx']];
   let controller = null;
   let searchTimer = null;
 
@@ -54,17 +56,23 @@ export function setupTable({ today, onPick, onError }) {
     }
   }
 
+  function updateDownloads(filters) {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(filters)) if (v !== null && v !== '') params.set(k, v);
+    for (const [id, path] of downloads) document.getElementById(id).href = `${path}?${params}`;
+  }
+
   async function load() {
     controller?.abort();
     controller = new AbortController();
     updateSortHeaders();
     skeleton();
     const { start, end } = scopeRange();
+    const filters = { start, end, hazardous: state.hazardous, q: state.q, sort: state.sort, order: state.order };
+    updateDownloads(filters);
     try {
-      const d = await api('approaches.php', {
-        start, end, hazardous: state.hazardous, q: state.q, sort: state.sort, order: state.order,
-        page: state.page, per_page: PER_PAGE,
-      }, { signal: controller.signal });
+      const d = await api('approaches', { ...filters, page: state.page, per_page: PER_PAGE },
+                          { signal: controller.signal });
       body.replaceChildren(...(d.items.length
         ? d.items.map(row)
         : [el('tr', {}, el('td', { colspan: 6, class: 'empty', text: 'No close approaches match these filters.' }))]));

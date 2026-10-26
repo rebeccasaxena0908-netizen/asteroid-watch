@@ -2,7 +2,7 @@
 
 **An automated data pipeline for tracking near-Earth asteroids with NASA APIs.**
 
-Asteroid Watch extracts close-approach data from NASA's NeoWs API every day. It transforms the nested JSON into clean relational tables, checks data quality, and loads the result into MySQL running in XAMPP. An animated space-themed dashboard served by XAMPP Apache and PHP shows the data, with a 3D Earth surrounded by this week's real asteroid approaches.
+Asteroid Watch extracts close-approach data from NASA's NeoWs API every day. It transforms the nested JSON into clean relational tables, checks data quality, and loads the result into MySQL running in XAMPP. An animated space-themed dashboard served by a FastAPI app (v2; the original PHP API is kept in `legacy/php/`) shows the data, with a 3D Earth surrounded by this week's real asteroid approaches.
 
 Built as a Data Engineering project (BCA, 5th semester).
 
@@ -59,8 +59,8 @@ flowchart LR
         V[("views<br/>(gold)")]
     end
 
-    subgraph WEB["XAMPP Apache + PHP"]
-        API["api/*.php<br/>JSON, PDO prepared statements,<br/>read-only DB user"]
+    subgraph WEB["FastAPI (uvicorn, localhost:8000)"]
+        API["api/<br/>JSON + CSV/Excel, bound parameters,<br/>read-only DB user"]
         UI["Dashboard<br/>Three.js + Chart.js"]
     end
 
@@ -203,17 +203,17 @@ Tested on macOS (Apple M2) with XAMPP 8.2 (MariaDB 10.4, PHP 8.2) and Python 3.1
    ```bash
    make backfill
    ```
-9. **Deploy the dashboard.** This copies `dashboard/` into XAMPP's htdocs and writes the read-only DB config outside the web root:
+9. **Start the dashboard and API** (FastAPI, reads with the read-only user from `.env`):
    ```bash
-   make deploy
+   make serve                 # Ctrl-C to stop; or keep it running: make api-install
    ```
-   Open **<http://localhost/asteroid-watch>**.
+   Open **<http://localhost:8000>** (API docs at <http://localhost:8000/docs>).
 10. **Schedule the daily run** (09:00 local time):
     ```bash
     make schedule-install      # make schedule-status / schedule-uninstall
     ```
 
-> **Why copy rather than symlink?** Apache runs as the `daemon` user, which can't read inside your home folder. A symlink from htdocs into `~/code` gives HTTP 403, so `make deploy` copies with `rsync`.
+> **v1 note:** the PHP API that v1 served through XAMPP Apache is retired and kept in `legacy/php/` (`make legacy-deploy` puts it back for the parity tests; see `docs/api.md`).
 
 ---
 
@@ -228,8 +228,10 @@ Tested on macOS (Apple M2) with XAMPP 8.2 (MariaDB 10.4, PHP 8.2) and Python 3.1
 | `python -m pipeline.run_pipeline --dry-run` | Extract, transform and quality-check without writing to the database |
 | `make crosscheck` | Compare a sample with NASA JPL; writes `docs/jpl_crosscheck.md` |
 | `make test` | Unit tests (offline) |
-| `make api-test` | Calls the deployed PHP API and checks its answers against direct SQL (needs XAMPP) |
-| `make deploy` | Publish the dashboard to `http://localhost/asteroid-watch` |
+| `make api-test` | Checks the API's answers against direct SQL, and the schema against the models (needs XAMPP MySQL) |
+| `make serve` | Dashboard + API at `http://localhost:8000` (docs at `/docs`) |
+| `make parity-test` | Legacy PHP API vs FastAPI, byte for byte (needs `make legacy-deploy`) |
+| `asteroid-watch --help` | Every command (v2 CLI); `asteroid-watch status` shows the last run of each source |
 | `make check-db` | Connection test plus row counts |
 
 Logs go to `logs/pipeline.log` (rotated at 1 MB). The scheduled job also writes `logs/launchd.*.log`.
@@ -295,11 +297,12 @@ asteroid-watch/
 │   ├── cleanup_twins.py   one-off duplicate-ID cleanup (preview / guarded apply)
 │   └── dashboard_config.py writes the dashboard's read-only DB config
 ├── sql/                   01_schema.sql, 02_views.sql, 03_migrations.sql
-├── dashboard/             deployed to htdocs/asteroid-watch
-│   ├── index.php
-│   ├── api/               summary, approaches, asteroid, trends, runs (JSON)
-│   ├── includes/          PDO connection + API helpers (not web-accessible)
+├── api/                   FastAPI: summary, approaches, asteroid, trends, runs, CSV/Excel exports
+├── dashboard/             served by FastAPI at http://localhost:8000
+│   ├── index.html
 │   └── assets/            css/, js/ (ES modules), img/, vendor/ (three.js, Chart.js, fonts)
+├── legacy/php/            the retired v1 PHP API (kept for the parity tests)
+├── migrations/            Alembic schema migrations (v2)
 ├── scheduler/             launchd plist template + README
 ├── tests/                 pytest; fixtures are real API responses (trimmed, key redacted)
 ├── docs/                  architecture, ER diagram, API, data quality reports, report outline, demo script

@@ -1,4 +1,4 @@
-// Asteroid detail dialog (api/asteroid.php).
+// Asteroid detail dialog (api/asteroid).
 
 import { api } from './api.js';
 import {
@@ -160,7 +160,7 @@ export async function openAsteroid(neoId, today) {
     el('div', { class: 'stat-grid' }, Array.from({ length: 4 }, () => el('div', { class: 'stat' }, el('span', { class: 'skeleton' })))));
   if (!dialog.open) dialog.showModal();
   try {
-    const d = await api('asteroid.php', { id: neoId });
+    const d = await api('asteroid', { id: neoId });
     if (id === requestId) render(d, today);
   } catch (err) {
     if (id === requestId) {

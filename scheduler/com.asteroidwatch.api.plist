@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Asteroid Watch API + dashboard server (macOS launchd user agent): http://localhost:8000
+  Template: `make api-install` replaces __PROJECT_DIR__ with the project folder and copies the
+  result to ~/Library/LaunchAgents/. See scheduler/README.md.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.asteroidwatch.api</string>
+
+    <!-- uvicorn with 1 worker, listening on 127.0.0.1 only (not reachable from other machines) -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PROJECT_DIR__/.venv/bin/asteroid-watch</string>
+        <string>serve</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8000</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_DIR__</string>
+
+    <!-- Start at login and restart if it ever stops (at most once every 10 seconds). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_DIR__/logs/api.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_DIR__/logs/api.err.log</string>
+</dict>
+</plist>

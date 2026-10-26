@@ -11,7 +11,7 @@ LINK_HOSTS = {"api.nasa.gov", "ssd-api.jpl.nasa.gov", "visibleearth.nasa.gov", "
 
 
 def page_sources():
-    files = [DASHBOARD / "index.php", *sorted((DASHBOARD / "assets" / "js").glob("*.js")),
+    files = [DASHBOARD / "index.html", *sorted((DASHBOARD / "assets" / "js").glob("*.js")),
              *sorted((DASHBOARD / "assets" / "css").glob("*.css")), VENDOR / "fonts" / "fonts.css"]
     return {f: f.read_text() for f in files}
 
@@ -33,8 +33,16 @@ def test_vendored_files_have_licences_and_match_recorded_hashes():
         assert (VENDOR / licence).stat().st_size > 500, licence
 
 
+def test_dashboard_is_static_html_without_php():
+    # v2: FastAPI serves dashboard/index.html; the PHP shell moved to legacy/php/.
+    assert not list(DASHBOARD.rglob("*.php"))
+    index = (DASHBOARD / "index.html").read_text()
+    assert "<?" not in index and "?v=" not in index
+    assert '"three":"./assets/vendor/three/three.module.min.js"' in index
+
+
 def test_index_uses_the_vendored_copies():
-    index = (DASHBOARD / "index.php").read_text()
+    index = (DASHBOARD / "index.html").read_text()
     for path in ["assets/vendor/three/three.module.min.js", "assets/vendor/chartjs/chart.umd.js",
                  "assets/vendor/fonts/fonts.css"]:
         assert path in index

@@ -364,6 +364,7 @@ details.data-view summary:hover { color: var(--text-secondary); }
 .table-card { padding: 18px; }
 .table-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
 .result-count { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.downloads { display: flex; gap: 8px; flex-wrap: wrap; }
 .table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }

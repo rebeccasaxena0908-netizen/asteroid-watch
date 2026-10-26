@@ -70,14 +70,22 @@ def test_test_command_runs_offline_tests_or_api_tests(monkeypatch):
     monkeypatch.setattr(cli.subprocess, "run", lambda args: calls.append(args) or Done())
     runner.invoke(cli.app, ["test"])
     runner.invoke(cli.app, ["test", "--api"])
-    assert calls[0][-1] == "--ignore=tests/integration"
+    runner.invoke(cli.app, ["test", "--parity"])
+    assert calls[0][-2:] == ["--ignore=tests/integration", "--ignore=tests/parity"]
     assert calls[1][-1] == "tests/integration"
+    assert calls[2][-1] == "tests/parity"
 
 
-def test_serve_explains_it_arrives_in_phase_2():
+def test_serve_runs_uvicorn_with_one_worker_on_localhost(monkeypatch):
+    import uvicorn
+
+    calls = []
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: calls.append((app, kwargs)))
     result = runner.invoke(cli.app, ["serve"])
-    assert result.exit_code == 1
-    assert "Phase 2" in result.output
+    assert result.exit_code == 0, result.output
+    app, kwargs = calls[0]
+    assert app == "api.main:app"
+    assert (kwargs["host"], kwargs["port"], kwargs["workers"]) == ("127.0.0.1", 8000, 1)
 
 
 def test_status_without_mysql_gives_a_short_message(monkeypatch):

@@ -36,12 +36,13 @@ def connect(settings: Settings | None = None, use_database: bool = True):
 
 
 
-def engine(settings: Settings | None = None) -> Engine:
+def engine(settings: Settings | None = None, **extra_args) -> Engine:
     """SQLAlchemy engine with the same connection rules as connect() (socket first, then TCP).
 
     The password goes in connect_args, not the URL, so it never appears in a printed URL.
+    extra_args are more PyMySQL connect() options, e.g. connect_timeout=3.
     """
-    args = connection_args(settings or load_settings())
+    args = connection_args(settings or load_settings()) | extra_args
     for key in ("cursorclass", "autocommit"):  # PyMySQL-only options; SQLAlchemy manages these
         args.pop(key)
     return create_engine(URL.create("mysql+pymysql"), connect_args=args, pool_pre_ping=True)

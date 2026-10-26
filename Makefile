@@ -4,8 +4,11 @@ HTDOCS  := /Applications/XAMPP/xamppfiles/htdocs
 SITE    := $(HTDOCS)/asteroid-watch
 AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
+API_AGENT := com.asteroidwatch.api
+API_PLIST := $(HOME)/Library/LaunchAgents/$(API_AGENT).plist
 
-.PHONY: help install requirements lint hooks scan-secrets setup-db migrate check-db status test api-test extract run quick-run backfill crosscheck deploy undeploy \
+.PHONY: help install requirements lint hooks scan-secrets setup-db migrate check-db status test api-test extract run quick-run backfill crosscheck serve parity-test legacy-deploy legacy-undeploy \
+        api-install api-uninstall api-status api-restart \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
@@ -18,16 +21,18 @@ help:
 	@echo "make migrate    apply database migrations (Alembic)"
 	@echo "make check-db   test the MySQL connection and list tables"
 	@echo "make status     last run per source, row counts, schema version"
-	@echo "               (all targets below call the asteroid-watch CLI; see: $(CLI) --help)"
 	@echo "make test       run unit tests (no internet or database needed)"
-	@echo "make api-test   test the deployed PHP API against MySQL (needs XAMPP + make deploy)"
+	@echo "make api-test   integration tests: FastAPI and schema against MySQL (needs XAMPP MySQL)"
+	@echo "make parity-test  legacy PHP API vs FastAPI, byte for byte (needs make legacy-deploy)"
 	@echo "make extract    download last 7 + next 7 days of NeoWs data to data/raw/ (no DB)"
 	@echo "make run        full pipeline: yesterday .. +7 days, logged in pipeline_runs"
 	@echo "make quick-run  same as run but no orbit lookups (a few seconds; good for a live demo)"
 	@echo "make backfill   full pipeline: last 365 .. +30 days (~57 calls + 500 orbit lookups)"
 	@echo "make crosscheck compare a sample with NASA JPL CAD; writes docs/jpl_crosscheck.md"
-	@echo "make deploy     write dashboard DB config, copy dashboard/ to $(SITE)"
-	@echo "make undeploy   remove $(SITE)"
+	@echo "make serve      dashboard + API at http://localhost:8000 (docs at /docs); Ctrl-C to stop"
+	@echo "make api-install / api-uninstall / api-status / api-restart"
+	@echo "                keep the server running with launchd (see scheduler/README.md)"
+	@echo "make legacy-deploy / legacy-undeploy   the retired PHP API on XAMPP (for parity tests)"
 	@echo "make schedule-install / schedule-uninstall / schedule-status / schedule-run-now"
 	@echo "                daily 09:00 launchd job (see scheduler/README.md)"
 
@@ -67,6 +72,9 @@ test:
 api-test:
 	$(CLI) test --api
 
+parity-test:
+	$(CLI) test --parity
+
 extract:
 	$(PYTHON) -m pipeline.extract --backfill-days 7 --forward-days 7
 
@@ -82,17 +90,44 @@ backfill:
 crosscheck:
 	$(CLI) crosscheck
 
-# Copy, not symlink: Apache runs as user 'daemon', which cannot read inside
-# /Users/<you> (home folder is drwxr-x---), so a symlink gives HTTP 403.
-# The dashboard's DB config (read-only user) goes outside the web root; see pipeline/dashboard_config.py.
-deploy:
+serve:
+	$(CLI) serve
+
+# The retired PHP API (legacy/php/), only for the parity tests. Copy, not symlink: Apache runs as
+# user 'daemon', which cannot read inside /Users/<you> (home folder is drwxr-x---), so a symlink
+# gives HTTP 403. The PHP API's DB config (read-only user) goes outside the web root; see
+# pipeline/dashboard_config.py. Only api/ and includes/ are replaced; nothing else in $(SITE).
+legacy-deploy:
 	$(PYTHON) -m pipeline.dashboard_config
 	mkdir -p $(SITE)
-	rsync -a --delete dashboard/ $(SITE)/
-	@echo "Deployed to http://localhost/asteroid-watch"
+	rsync -a --delete legacy/php/api/ $(SITE)/api/
+	rsync -a --delete legacy/php/includes/ $(SITE)/includes/
+	cp legacy/php/.htaccess $(SITE)/.htaccess
+	@echo "Legacy PHP API at http://localhost/asteroid-watch/api/*.php"
 
-undeploy:
+legacy-undeploy:
 	rm -rf $(SITE)
+
+# API server kept running by launchd (http://localhost:8000). See scheduler/README.md.
+api-install:
+	mkdir -p logs $(HOME)/Library/LaunchAgents
+	sed "s|__PROJECT_DIR__|$(CURDIR)|g" scheduler/$(API_AGENT).plist > $(API_PLIST)
+	plutil -lint $(API_PLIST)
+	launchctl bootstrap gui/$$(id -u) $(API_PLIST)
+	@echo "Installed: http://localhost:8000 (starts at login). Check with: make api-status"
+
+api-uninstall:
+	-launchctl bootout gui/$$(id -u)/$(API_AGENT)
+	rm -f $(API_PLIST)
+	@echo "Uninstalled."
+
+api-status:
+	@launchctl print gui/$$(id -u)/$(API_AGENT) 2>/dev/null | grep -E "state =|pid =|last exit code|runs =" \
+		|| echo "Not installed."
+
+api-restart:
+	launchctl kickstart -k gui/$$(id -u)/$(API_AGENT)
+	@echo "Restarted. Logs: logs/api.err.log"
 
 # Daily launchd job. See scheduler/README.md.
 schedule-install:

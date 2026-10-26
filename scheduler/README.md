@@ -46,3 +46,22 @@ rm ~/Library/LaunchAgents/com.asteroidwatch.pipeline.plist
 ```
 
 After changing the plist template, uninstall and install again.
+
+---
+
+# API server (macOS launchd)
+
+`com.asteroidwatch.api.plist` keeps the dashboard and API running at **http://localhost:8000**
+(`asteroid-watch serve`: uvicorn, 1 worker, listening on 127.0.0.1 only). It starts when you log
+in, and launchd restarts it if it stops (at most once every 10 seconds). If MySQL is off, the
+server keeps running and the dashboard shows "Database offline" until MySQL is back.
+
+```bash
+make api-install      # install and start
+make api-status       # running? pid? last exit code?
+make api-restart      # restart, e.g. after changing the code
+make api-uninstall    # stop and remove
+```
+
+Logs: `logs/api.out.log` and `logs/api.err.log`. Port 8000 must be free: if another program
+already uses it, the server can't start (see `logs/api.err.log`).

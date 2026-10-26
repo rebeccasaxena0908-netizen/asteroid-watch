@@ -1,4 +1,4 @@
-// Pipeline health panel (api/runs.php): latest ETL run summary + run history with quality checks.
+// Pipeline health panel (api/runs): latest ETL run summary + run history with quality checks.
 
 import { el, icon, fmtInt, fmtDate, fmtDuration, timeAgo, hoursSince, runStatus, statusEl } from './format.js';
 

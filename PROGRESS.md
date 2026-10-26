@@ -135,7 +135,8 @@
 |---|---|
 | 0. Baseline and tooling | ✅ Done (2026-10-27) |
 | 1. Python foundation (SQLAlchemy, Alembic, Typer) | ✅ Done (2026-10-27) |
-| 2. FastAPI replaces PHP | ⏳ Next |
+| 2. FastAPI replaces PHP | ✅ Done (2026-10-27) |
+| 3. Orchestration with Prefect | ⏳ Next |
 
 Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 → 12 → 13.
 
@@ -180,5 +181,19 @@ Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 →
 ### Phase 3 requirements added by the user (2026-10-27)
 - Before extracting, wait until the network is actually reachable: check every few minutes for up to 2 hours, instead of failing within seconds.
 - If XAMPP MySQL isn't running: record the failure in a local log file and retry later the same day.
-- Move the daily time from 09:00 to an evening time (IST) when the Mac is usually open; keep the catch-up-on-wake behaviour. **Exact time still to be confirmed by the user** (the request said "[YOUR TIME, e.g. 19:00]").
+- Move the daily time from 09:00 to an evening time (IST) when the Mac is usually open; keep the catch-up-on-wake behaviour. **19:00 IST** (confirmed by the user).
 - No `pmset`.
+
+## v2 Phase 2: FastAPI replaces PHP (2026-10-27) — reference and how it works: `docs/api.md`
+- **FastAPI app** (`api/`, FastAPI 0.162, Pydantic 2.14, uvicorn 0.54): the 5 endpoints at `/api/summary|approaches|asteroid|trends|runs`, one route module per PHP file. Same SQL as PHP (SQLAlchemy `text()` with bound `:params`), validation ported one-for-one (`api/params.py`, same messages and order), same errors (400/404/405/503/500) and headers. Connects as `asteroid_reader` from `.env`.
+- Values converted to what PHP's PDO sent (`api/db.py`): DECIMAL → `"21.650"`, DATE/DATETIME → strings, BOOLEAN → true/false. **Strict** Pydantic response models (`api/schemas.py`) check every response and generate `/docs`.
+- **Parity tests** (`tests/parity/test_parity.py`, `make parity-test`): **104 passed, every body byte-for-byte identical** to PHP. Covered: all endpoints, ± `pretty=1`, all sorts/filters, 11 searches incl. `%`, `_`, `\`, injection text and "–", all **1,684** asteroid IDs + aliases, every page of approaches, 21 bad inputs, POST/PUT/DELETE. A deliberately broken DECIMAL conversion was caught (by the comparison and, earlier, by the strict model).
+- **Switch done after parity passed:** `dashboard/index.html` (static, rendered once from index.php; `?v=` URLs replaced by `Cache-Control: no-cache` + ETag revalidation); JS calls `/api/<name>`; PHP moved with `git mv` to `legacy/php/` (api/, includes/, index.php, .htaccess) with a README. `make legacy-deploy` / `legacy-undeploy` put the PHP API back on XAMPP for parity tests (only api/ and includes/ are replaced).
+- **Served by FastAPI:** dashboard at `/`, `dashboard/assets/` only (path traversal → 404, tested), `/docs` with **Swagger UI 5.33.2 vendored** (`api/static/swagger-ui/`, 4 files, SHA-256 matched jsdelivr's published hashes; re-checked by a test) so docs work offline.
+- **Exports:** `/api/approaches.csv|.xlsx` (the table's current filters and sort, all pages, ≤ 100,000 rows) and `/api/runs.csv|.xlsx`; buttons in the table toolbar and the pipeline section. UTF-8 BOM for Excel; formula-injection protection (`= + - @` cells get `'`). Live check: hazardous CSV = 188 rows = API total; runs Excel = 22 runs with numeric cells.
+- **Server:** `asteroid-watch serve` (uvicorn, 1 worker, 127.0.0.1:8000; `--port`, `--reload`), `make serve`. **launchd agent** `scheduler/com.asteroidwatch.api.plist` (RunAtLoad, KeepAlive, ThrottleInterval 10, logs/api.*.log); `make api-install | api-status | api-restart | api-uninstall`. **Not installed: the user installs it.** Measured: 36 MB resident while serving (estimate was ~120 MB; macOS may compress idle memory).
+- **Port conflict found:** port 8000 is already used by another project of the user's (`~/Desktop/Remembrance/backend`, uvicorn, running since 23 Oct). Left untouched; tested on 8010. The API agent will fail to bind 8000 while that runs (see question in the Phase 2 summary).
+- **Browser check** (headless Chrome over CDP, Metal GPU, on :8010): 1440×900 and 390×844 — 26 requests, 0 errors, 0 failed, 0 external, 4 charts, live tiles, 15 table rows, 10 runs; clicking "Hazardous" changed the count 95 → 17 and the CSV link's filters; phone width has no horizontal scroll.
+- **Test changes (intended interface changes):** `tests/test_php.py` now points at `legacy/php/`; `tests/test_dashboard_assets.py` checks `index.html` (+ a new test: no PHP left in `dashboard/`); `tests/integration/test_api.py` runs each v1 check against FastAPI and, when deployed, PHP; CLI tests updated for the real `serve` and `test --parity`. Test client: `httpx2` (Starlette deprecates `httpx`).
+- README, `docs/api.md`, `scheduler/README.md` updated (full README rewrite in Phase 13).
+- Tests: `make test` **155 passed** (36 new API tests: validation before DB access, 503s, 405/404, headers, value conversion, strict models, SQL stays parameterised, formula-safe exports, static boundaries, local `/docs`, Swagger hashes); `make api-test` **23 passed**; `make parity-test` **104 passed**.

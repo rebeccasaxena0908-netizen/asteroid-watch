@@ -1,4 +1,4 @@
-// Fetch wrapper for the PHP JSON API (dashboard/api/*.php).
+// Fetch wrapper for the FastAPI JSON API (/api/*, api/main.py).
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -18,7 +18,7 @@ export async function api(endpoint, params = {}, { signal } = {}) {
     response = await fetch(url, { headers: { Accept: 'application/json' }, signal });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    throw new ApiError('Cannot reach the dashboard server. Is XAMPP Apache running?', 0);
+    throw new ApiError('Cannot reach the dashboard server. Is it running? (asteroid-watch serve)', 0);
   }
   let body;
   try {

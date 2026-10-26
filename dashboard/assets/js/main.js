@@ -105,7 +105,7 @@ function rangeParams(kind) {
 async function loadCharts() {
   const r = rangeParams(range);
   try {
-    const trends = await api('trends.php', { start: r.start, end: r.end });
+    const trends = await api('trends', { start: r.start, end: r.end });
     renderCharts(trends, r, today, pick);
   } catch (err) {
     showBanner(`Charts: ${err.message}`, loadAll);
@@ -126,7 +126,7 @@ async function loadAll() {
   hideBanner();
   let summary;
   try {
-    summary = await api('summary.php');
+    summary = await api('summary');
   } catch (err) {
     // Never show made-up numbers: keep the placeholders and explain what's wrong.
     showBanner(err.message, loadAll);
@@ -142,12 +142,12 @@ async function loadAll() {
 
   loadCharts();
 
-  api('runs.php', { limit: 10 })
+  api('runs', { limit: 10 })
     .then((d) => renderHealth(d.runs))
     .catch((err) => showBanner(`Pipeline history: ${err.message}`, loadAll));
 
   // This week's real approaches become the rocks around the 3D Earth.
-  api('approaches.php', { start: today, end: addDays(today, 6), per_page: 100, sort: 'distance' })
+  api('approaches', { start: today, end: addDays(today, 6), per_page: 100, sort: 'distance' })
     .then(async (d) => { await spaceReady; space?.setAsteroids(d.items, pick); })
     .catch(() => { /* the scene still works without rocks */ });
 }

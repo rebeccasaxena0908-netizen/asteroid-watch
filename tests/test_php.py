@@ -1,4 +1,7 @@
-"""PHP API checks that need no database or web server: lint, input validation, MySQL-down errors."""
+"""Legacy PHP API checks that need no database or web server: lint, input validation, MySQL-down errors.
+
+v2: the PHP API moved from dashboard/ to legacy/php/ (retired, kept for the parity tests).
+"""
 import json
 import os
 import shutil
@@ -10,7 +13,7 @@ import pytest
 from pipeline.config import PROJECT_ROOT
 
 PHP = shutil.which("php") or "/Applications/XAMPP/xamppfiles/bin/php"
-DASHBOARD = PROJECT_ROOT / "dashboard"
+LEGACY = PROJECT_ROOT / "legacy" / "php"
 pytestmark = pytest.mark.skipif(not Path(PHP).exists(), reason="PHP CLI not installed")
 
 
@@ -21,14 +24,14 @@ def run_endpoint(name: str, query: str, tmp_path: Path, config: str | None = Non
         ini = tmp_path / "db.ini"
         ini.write_text(config)
         env["ASTEROID_WATCH_CONFIG"] = str(ini)
-    code = f'parse_str({json.dumps(query)}, $_GET); include {json.dumps(str(DASHBOARD / "api" / name))};'
+    code = f'parse_str({json.dumps(query)}, $_GET); include {json.dumps(str(LEGACY / "api" / name))};'
     out = subprocess.run([PHP, "-d", "display_errors=0", "-r", code], env=env,
                          capture_output=True, text=True, timeout=30)
     return json.loads(out.stdout)
 
 
 def test_all_php_files_lint():
-    files = sorted(DASHBOARD.rglob("*.php"))
+    files = sorted(LEGACY.rglob("*.php"))
     assert files
     for f in files:
         result = subprocess.run([PHP, "-l", str(f)], capture_output=True, text=True)

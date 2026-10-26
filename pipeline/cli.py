@@ -5,9 +5,9 @@
     asteroid-watch backfill     last 365 .. +30 days
     asteroid-watch crosscheck   compare a sample with NASA JPL CAD
     asteroid-watch status       last run per source, row counts, schema version
-    asteroid-watch test         offline tests (--api: tests against the deployed API)
+    asteroid-watch test         offline tests (--api: integration tests, --parity: PHP vs FastAPI)
     asteroid-watch migrate      apply database migrations (Alembic)
-    asteroid-watch serve        the FastAPI server (from v2 Phase 2)
+    asteroid-watch serve        the API and dashboard at http://localhost:8000
 
 Each command calls the existing module (pipeline.run_pipeline, pipeline.jpl_crosscheck, ...),
 so `python -m pipeline.run_pipeline` keeps working exactly as before.
@@ -163,9 +163,17 @@ def status() -> None:
 
 
 @app.command()
-def test(api: bool = typer.Option(False, "--api", help="Run the tests against the deployed API instead.")) -> None:
+def test(
+    api: bool = typer.Option(False, "--api", help="Integration tests: API and schema against MySQL."),
+    parity: bool = typer.Option(False, "--parity", help="Parity tests: legacy PHP API vs FastAPI."),
+) -> None:
     """Run the tests. Default: offline unit tests (no internet or database needed)."""
-    target = ["tests/integration"] if api else ["--ignore=tests/integration"]
+    if parity:
+        target = ["tests/parity"]
+    elif api:
+        target = ["tests/integration"]
+    else:
+        target = ["--ignore=tests/integration", "--ignore=tests/parity"]
     raise typer.Exit(subprocess.run([sys.executable, "-m", "pytest", "-q", *target]).returncode)
 
 
@@ -195,11 +203,16 @@ def check_db() -> None:
 
 
 @app.command()
-def serve() -> None:
-    """Start the FastAPI server (arrives in v2 Phase 2)."""
-    console.print("The FastAPI server arrives in v2 Phase 2. Until then the dashboard is served by XAMPP: "
-                  "`make deploy`, then http://localhost/asteroid-watch")
-    raise typer.Exit(1)
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Address to listen on (127.0.0.1 = this Mac only)."),
+    port: int = typer.Option(8000, help="Port."),
+    reload: bool = typer.Option(False, help="Restart when code changes (development)."),
+) -> None:
+    """Start the API and dashboard (FastAPI + uvicorn, 1 worker): http://localhost:8000"""
+    import uvicorn
+
+    console.print(f"Dashboard: http://localhost:{port}/   API docs: http://localhost:{port}/docs")
+    uvicorn.run("api.main:app", host=host, port=port, workers=1, reload=reload, log_level="info")
 
 
 if __name__ == "__main__":
