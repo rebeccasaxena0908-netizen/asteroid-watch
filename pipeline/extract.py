@@ -59,7 +59,7 @@ class NeoWsClient:
         self.timeout = timeout
         self.sleep = sleep            # injectable so tests don't really wait
         self.api_calls = 0            # every HTTP attempt, including retries
-        self.rate_limit_remaining = None
+        self.rate_limit_remaining: int | None = None
 
     def redact(self, text: str) -> str:
         return text.replace(self.api_key, "REDACTED") if self.api_key else text
@@ -93,6 +93,7 @@ class NeoWsClient:
             log.warning("%s for %s, retrying in %.0fs (attempt %d/%d)",
                         problem, path, wait, attempt + 1, self.max_retries)
             self.sleep(wait)
+        raise AssertionError("unreachable: the last attempt returns or raises")
 
     def _record_rate_limit(self, response) -> None:
         remaining = response.headers.get("X-RateLimit-Remaining")

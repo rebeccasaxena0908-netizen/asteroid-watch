@@ -4,11 +4,15 @@ SITE    := $(HTDOCS)/asteroid-watch
 AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 
-.PHONY: help install setup-db check-db test api-test extract run quick-run backfill crosscheck deploy undeploy \
+.PHONY: help install requirements lint hooks scan-secrets setup-db check-db test api-test extract run quick-run backfill crosscheck deploy undeploy \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
-	@echo "make install    create .venv and install Python packages"
+	@echo "make install    create .venv and install the project + dev tools (from pyproject.toml)"
+	@echo "make requirements  regenerate requirements.txt from pyproject.toml"
+	@echo "make lint       ruff + mypy"
+	@echo "make hooks      install the git pre-commit hooks (secret scan, lint, type check)"
+	@echo "make scan-secrets  check every tracked file for secrets from .env"
 	@echo "make setup-db   create database, app user, tables and views (needs .env)"
 	@echo "make check-db   test the MySQL connection and list tables"
 	@echo "make test       run unit tests (no internet or database needed)"
@@ -26,7 +30,20 @@ help:
 install:
 	python3 -m venv .venv
 	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -e ".[dev]"
+
+requirements:
+	$(PYTHON) -m scripts.gen_requirements
+
+lint:
+	.venv/bin/ruff check .
+	.venv/bin/mypy
+
+hooks:
+	.venv/bin/pre-commit install
+
+scan-secrets:
+	git ls-files -z | xargs -0 $(PYTHON) -m scripts.check_secrets && echo "No secrets found."
 
 setup-db:
 	$(PYTHON) -m pipeline.setup_db

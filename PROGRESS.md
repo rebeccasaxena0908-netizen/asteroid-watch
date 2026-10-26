@@ -126,3 +126,39 @@
 - Tests: `make test` 96 passing (offline), `make api-test` 10 passing.
 - Acceptance criteria: `make test` passes without internet ✅ · `make run` fetches, transforms, loads and logs; a re-run creates no duplicates ✅ · dashboard loads from MySQL at http://localhost/asteroid-watch and animates at 60 fps on the M2 ✅ · no API key in git history ✅ (scanned before every commit).
 - Still for the user: `make schedule-install` to turn on the daily 09:00 run.
+
+---
+
+# v2 (branch `v2`). Plan, order and estimates: `docs/v2_plan.md`
+
+| Phase | Status |
+|---|---|
+| 0. Baseline and tooling | ✅ Done (2026-10-27) |
+| 1. Python foundation (SQLAlchemy, Alembic, Typer) | ⏳ Next |
+
+Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 → 12 → 13.
+
+## v2 Phase 0: Baseline and tooling (2026-10-27)
+
+### Baseline (before any v2 change)
+- `make test` **96 passed**, `make api-test` **10 passed**.
+- Tables: 1,627 asteroids, 1,876 approaches, **1,078 orbits** (up from 578: the daily runs keep filling them in), 57 aliases, 21 runs, 121 quality results.
+- `make quick-run` = **run 21**: 2 API calls, 3.0 s, 51 records → 49 after removing 2 old-ID copies, 0 inserted, 3 updated, 8/8 checks passed.
+
+### Why run 20 failed (and what else the daily job is doing)
+- **Cause of run 20: the Mac was asleep (lid closed, on battery), so there was no network.** At 09:11:42 on 26 Oct macOS did a 19-second maintenance wake ("DarkWake", logged by `pmset -g log`). launchd used it to start the missed 09:00 job. Wi-Fi isn't connected during a DarkWake, so the first 4 requests failed within 40 ms each (ConnectionError, never reached NASA). The Mac went back to sleep at 09:12:01, during the 16 s backoff, and the process stayed frozen until the next DarkWake at 09:44:14. The 5th attempt then also failed, and the run was marked failed at 09:44:15. The retries worked as designed. They were just all used up within one 19-second window with no network.
+- **Same mechanism, different ending: runs 17–19 took 3–6 hours.** Run 17 started in a 2-second DarkWake at 09:07:36, was frozen when the Mac slept at 09:07:38, and finished at 15:07 when the lid was opened. Run 13 (13 Oct) failed exactly like run 20. The power log no longer covers that date, so this is likely but not verified.
+- **19, 20 and 21 Oct: XAMPP MySQL wasn't running** ("Connection refused"). These runs couldn't write to `pipeline_runs`, so they're only in `logs/launchd.err.log`. The dashboard's "> 26 h" stale warning is what shows them.
+- **14–18 and 22 Oct: no log entry at all.** The job didn't start. launchd catches up a missed run after sleep, but not after a shutdown, so the Mac was probably off.
+- **No data was lost.** Every day has approaches in the database (the v1 backfill reached 11 Nov). The missed runs only lost NASA's updates for those days.
+- **Fix: planned for Phase 3 (Prefect), not changed now.** Check the network before extracting and wait for a real wake if it's down. Retry the whole flow later (minutes apart, not seconds). Record failed attempts even when MySQL is down. Optionally, you could schedule a full wake just before 09:00 (`sudo pmset repeat wake …`). That's a system setting, so it's your choice.
+
+### Tooling
+- `pyproject.toml`: metadata, dependencies (runtime + `dev`), pytest/ruff/mypy settings. `make install` = `pip install -e ".[dev]"`. `requirements.txt` is generated (`make requirements`, `scripts/gen_requirements.py`); a test and a hook keep it in sync.
+- **ruff** (lint: E, W, F, I, B, UP; line length 120) and **mypy** (non-strict): `make lint`. Fixes needed in v1 code, none changing behaviour: 1 lambda → def, an explicit `zip(strict=False)`, import order in 3 test files, and 5 type hints (`rate_limit_remaining: int | None`, `diameter_m(dict | None)`, an explicit "unreachable" after the retry loop). `ruff format` wasn't applied to v1, to avoid rewriting ~700 lines.
+- **pre-commit** (`make hooks`, installed): secret scan, requirements in sync, ruff, mypy. All local hooks using `.venv`.
+- **Secret scan** `scripts/check_secrets.py` (`make scan-secrets`): searches files for the real `.env` secret values and for credential patterns; prints names only. Scanned the working tree and **all 11 commits of history: no secrets found.**
+- **GitHub Actions** `.github/workflows/tests.yml`: Python 3.14 + PHP 8.2 (pdo_mysql) on Ubuntu; lint, type check, requirements check, secret-pattern scan, offline tests.
+- The daily launchd job is unchanged and still imports correctly under `env -i` (as launchd runs it).
+- Docs: `docs/v2_plan.md` (order, decisions, memory/disk estimates, final folder structure), `docs/tooling.md` (how it works).
+- Tests: `make test` **101 passed** (96 v1 + 5 tooling), `make api-test` **10 passed**.

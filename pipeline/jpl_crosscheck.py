@@ -39,7 +39,7 @@ PAUSE_SECONDS = 1.0            # be polite to a free API
 def cad_rows(payload: dict) -> list[dict]:
     """CAD returns {"fields": [...], "data": [[...], ...]}; turn it into a list of dicts."""
     fields = payload.get("fields", [])
-    return [dict(zip(fields, row)) for row in payload.get("data", [])]
+    return [dict(zip(fields, row, strict=False)) for row in payload.get("data", [])]
 
 
 def relative_diff(ours: float | None, theirs: float | None) -> float | None:

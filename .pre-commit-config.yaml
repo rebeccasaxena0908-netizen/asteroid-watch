@@ -1,0 +1,26 @@
+# Git hooks run on every commit. Install once with: make hooks
+# All hooks use the tools in .venv (same versions as pyproject.toml, nothing downloaded).
+repos:
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: secret scan (.env values and credential patterns)
+        entry: .venv/bin/python -m scripts.check_secrets
+        language: system
+      - id: requirements-in-sync
+        name: requirements.txt matches pyproject.toml
+        entry: .venv/bin/python -m scripts.gen_requirements --check
+        language: system
+        files: ^(pyproject\.toml|requirements\.txt)$
+        pass_filenames: false
+      - id: ruff
+        name: ruff lint
+        entry: .venv/bin/ruff check
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy type check
+        entry: .venv/bin/mypy
+        language: system
+        types: [python]
+        pass_filenames: false

@@ -3,8 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from pipeline.extract import ExtractResult
-from pipeline.quality import (check_no_duplicates, check_same_object_under_two_ids, run_checks,
-                              save_results)
+from pipeline.quality import check_no_duplicates, check_same_object_under_two_ids, run_checks, save_results
 from pipeline.transform import transform_feeds
 
 FIXTURE = Path(__file__).parent / "fixtures" / "feed_sample.json"

@@ -1,0 +1,54 @@
+# Project metadata, dependencies and tool settings in one place.
+# requirements.txt is generated from this file: make requirements
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asteroid-watch"
+version = "2.0.0.dev0"
+description = "NASA near-Earth data pipeline: NeoWs and JPL into MySQL, with a dashboard"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.32,<3",
+    "python-dotenv>=1.0,<2",
+    "PyMySQL>=1.1,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+    "ruff>=0.17,<0.18",
+    "mypy>=2.4,<3",
+    "pre-commit>=4,<5",
+    "types-requests>=2.32",
+]
+
+[tool.setuptools]
+packages = ["pipeline", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["dashboard/assets/vendor"]
+
+[tool.ruff.lint]
+# E/W: style errors, F: pyflakes (unused names, undefined names), I: import order,
+# B: bugbear (likely bugs), UP: modern Python syntax
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pipeline", "scripts"]
+
+[tool.mypy]
+# Non-strict to start: check what is annotated, don't require annotations everywhere.
+python_version = "3.12"
+files = ["pipeline", "tests", "scripts"]
+ignore_missing_imports = true
+warn_unused_ignores = true

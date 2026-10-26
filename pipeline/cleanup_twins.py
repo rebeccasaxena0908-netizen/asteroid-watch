@@ -51,7 +51,9 @@ def plan(cur, skip: set[str]) -> dict:
     if old_ids:
         cur.execute(f"SELECT neo_id FROM orbital_data WHERE neo_id IN ({', '.join(['%s'] * len(old_ids))})", old_ids)
         orbits = {r["neo_id"] for r in cur.fetchall()}
-    key = lambda r: (r["approach_date"], r["neo_id"])
+    def key(r):
+        return (r["approach_date"], r["neo_id"])
+
     return {"aliases": aliases, "names": names, "orbits": orbits,
             "delete": sorted(delete, key=key), "move": sorted(move, key=key)}
 

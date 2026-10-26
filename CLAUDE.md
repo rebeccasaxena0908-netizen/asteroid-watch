@@ -1,6 +1,6 @@
 # Asteroid Watch: notes for Claude
 
-Full spec: `AsteroidWatch_ClaudeCode_Prompt.md`. Progress: `PROGRESS.md`.
+v1 spec: `AsteroidWatch_ClaudeCode_Prompt.md`. v2 spec: `AsteroidWatch_v2_ClaudeCode_Prompt.md` (both gitignored, never commit). Progress: `PROGRESS.md`. v2 plan: `docs/v2_plan.md`. v2 work is on branch `v2`; main stays v1 until Phase 13.
 College Data Engineering project (5th sem BCA). Keep the code simple enough to explain in a viva.
 
 ## Rules
@@ -32,10 +32,12 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 - XAMPP PHP timezone is Europe/Berlin; all dates come from MySQL (IST), so don't use PHP date().
 
 ## Commands
-`make install | setup-db | check-db | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
+`make install | requirements | lint | hooks | scan-secrets | setup-db | check-db | test | api-test | extract | run | backfill | crosscheck | deploy | undeploy`
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
+- Tooling: deps live in pyproject.toml; requirements.txt is generated (never hand-edit). ruff is lint-only on v1 code (no `ruff format`). pre-commit hooks are local (.venv tools).
+- Daily launchd job: when the lid is closed, macOS DarkWakes start the job with no network, then sleep mid-run (runs 13, 20 failed; runs 17–19 took hours). Check `pmset -g log` when diagnosing. Fix planned in Phase 3.
 - Upsert counts: PyMySQL doesn't set CLIENT_FOUND_ROWS, so affected = inserts + 2*changed rows.
 - Orbital lookups are capped per run (backfill finds ~1,700 asteroids, above the hourly limit if fetched all at once).
 - NeoWs feed omits some dates entirely (4 of 396 in the backfill); JPL CAD shows approaches on them, so they're gaps.

@@ -9,6 +9,10 @@ dashboard/includes/config.local.php
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
 
 # Pipeline data and logs
 data/raw/
@@ -19,6 +23,7 @@ logs/
 
 # Spec file stays local
 AsteroidWatch_ClaudeCode_Prompt.md
+AsteroidWatch_v2_ClaudeCode_Prompt.md
 
 # Database backups
 backups/

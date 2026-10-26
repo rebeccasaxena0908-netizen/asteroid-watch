@@ -54,7 +54,7 @@ def parse_approach_datetime(value) -> datetime | None:
         return None
 
 
-def diameter_m(estimated_diameter: dict, bound: str) -> float | None:
+def diameter_m(estimated_diameter: dict | None, bound: str) -> float | None:
     """Estimated diameter in meters. bound is 'min' or 'max'.
 
     Uses the 'meters' figures; falls back to kilometers x 1000 if meters are missing.

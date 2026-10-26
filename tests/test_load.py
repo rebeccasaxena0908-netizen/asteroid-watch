@@ -1,4 +1,4 @@
-from pipeline.load import (APPROACH_COLUMNS, LoadCounts, split_counts, upsert_rows, upsert_sql)
+from pipeline.load import APPROACH_COLUMNS, LoadCounts, split_counts, upsert_rows, upsert_sql
 
 
 def test_upsert_sql_updates_only_non_key_columns():

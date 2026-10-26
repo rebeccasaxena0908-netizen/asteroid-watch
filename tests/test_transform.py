@@ -3,8 +3,15 @@ import json
 from datetime import date, datetime
 from pathlib import Path
 
-from pipeline.transform import (designation, diameter_m, is_numbered, parse_approach_datetime, to_float,
-                                transform_feeds, transform_orbital)
+from pipeline.transform import (
+    designation,
+    diameter_m,
+    is_numbered,
+    parse_approach_datetime,
+    to_float,
+    transform_feeds,
+    transform_orbital,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
