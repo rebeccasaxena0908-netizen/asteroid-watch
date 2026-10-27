@@ -16,14 +16,17 @@ so `python -m pipeline.run_pipeline` keeps working exactly as before.
 
 import subprocess
 import sys
+import tomllib
 from datetime import datetime, timedelta
 
+import requests
 import typer
 from rich.console import Console
 from rich.table import Table
 from sqlalchemy import func, select
 
-from pipeline import jpl_crosscheck, run_pipeline
+from pipeline import jpl_crosscheck, run_pipeline, steps
+from pipeline.config import PROJECT_ROOT
 from pipeline.models import Asteroid, CloseApproach, NeoIdAlias, OrbitalData, PipelineRun, QualityResult
 
 # show_locals=False: Typer's error display would otherwise print local variables,
@@ -108,6 +111,34 @@ def source_status(session) -> list[dict]:
     return rows
 
 
+def prefect_api_url() -> str:
+    return tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text())["tool"]["prefect"]["api"]["url"]
+
+
+def next_prefect_run() -> str:
+    """The next scheduled run of the daily flow, from the local Prefect server."""
+    query = {"flow_runs": {"state": {"type": {"any_": ["SCHEDULED"]}}}, "sort": "EXPECTED_START_TIME_ASC", "limit": 1}
+    try:
+        r = requests.post(f"{prefect_api_url()}/flow_runs/filter", json=query, timeout=3)
+        r.raise_for_status()
+    except requests.RequestException:
+        return "[yellow]Prefect server not running[/yellow] (make prefect-server, or make prefect-install)"
+    runs = r.json()
+    if not runs:
+        return "[yellow]none scheduled[/yellow] (is the worker running? make prefect-worker)"
+    when = datetime.fromisoformat(runs[0]["expected_start_time"]).astimezone()
+    return f"{when:%a %d %b %H:%M} ({runs[0]['state_name']})"
+
+
+def print_failed_attempts() -> None:
+    """Failures that couldn't be written to MySQL (logs/failed_attempts.log), last 7 days."""
+    failed = steps.recent_failed_attempts(days=7)
+    if failed:
+        latest = failed[-1]
+        console.print(f"[red]{len(failed)} failed attempt(s) in the last 7 days not recorded in MySQL[/red]; "
+                      f"latest {latest['time']}: {latest['reason']} (logs/failed_attempts.log)")
+
+
 @app.command()
 def status() -> None:
     """Show the last run of every source, table row counts and the schema version."""
@@ -126,12 +157,15 @@ def status() -> None:
             counts = {model.__tablename__: session.scalar(select(func.count()).select_from(model)) for model in TABLES}
     except Exception as exc:  # most often: XAMPP MySQL isn't running
         console.print(f"[red]Cannot read the database ({type(exc).__name__}). Is XAMPP MySQL running?[/red]")
+        print_failed_attempts()
         raise typer.Exit(1) from None
 
     head = ScriptDirectory.from_config(alembic_config()).get_current_head()
     behind = f"[yellow]behind (head is {head}): run `asteroid-watch migrate`[/yellow]"
     note = "up to date" if current == head else behind
     console.print(f"Schema version: {current} ({note})")
+    console.print(f"Next scheduled daily run (Prefect): {next_prefect_run()}")
+    print_failed_attempts()
 
     table = Table(title="Sources")
     for column in ["Source", "Latest run", "Status", "Last success", "Checks"]:

@@ -64,7 +64,7 @@ flowchart LR
         UI["Dashboard<br/>Three.js + Chart.js"]
     end
 
-    LAUNCHD(["macOS launchd<br/>daily 09:00 IST"]) --> EX
+    LAUNCHD(["Prefect flow<br/>daily 19:00 IST"]) --> EX
     FEED --> EX
     LOOK --> EX
     EX --> RAW --> TR --> LD --> T
@@ -208,9 +208,9 @@ Tested on macOS (Apple M2) with XAMPP 8.2 (MariaDB 10.4, PHP 8.2) and Python 3.1
    make serve                 # Ctrl-C to stop; or keep it running: make api-install
    ```
    Open **<http://localhost:8010>** (API docs at <http://localhost:8010/docs>).
-10. **Schedule the daily run** (09:00 local time):
+10. **Schedule the daily run** (Prefect, 19:00 IST; see `docs/orchestration.md`):
     ```bash
-    make schedule-install      # make schedule-status / schedule-uninstall
+    make prefect-install       # Prefect server + worker via launchd; UI at http://127.0.0.1:4200
     ```
 
 > **v1 note:** the PHP API that v1 served through XAMPP Apache is retired and kept in `legacy/php/` (`make legacy-deploy` puts it back for the parity tests; see `docs/api.md`).

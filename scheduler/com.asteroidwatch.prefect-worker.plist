@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Prefect worker (macOS launchd user agent): registers the daily deployment (19:00 IST) and runs
+  its flow runs, including late ones after the Mac was asleep or off (flows/serve.py).
+  launchd only keeps this process alive; the schedule itself lives in Prefect.
+  Installed by `make prefect-install`. See scheduler/README.md.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.asteroidwatch.prefect-worker</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PROJECT_DIR__/.venv/bin/python</string>
+        <string>-m</string>
+        <string>flows.serve</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_DIR__</string>
+
+    <!-- If the server isn't up yet, the worker exits and launchd starts it again 30 s later. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_DIR__/logs/prefect-worker.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_DIR__/logs/prefect-worker.err.log</string>
+</dict>
+</plist>

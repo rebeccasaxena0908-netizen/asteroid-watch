@@ -136,7 +136,8 @@
 | 0. Baseline and tooling | ✅ Done (2026-10-27) |
 | 1. Python foundation (SQLAlchemy, Alembic, Typer) | ✅ Done (2026-10-27) |
 | 2. FastAPI replaces PHP | ✅ Done (2026-10-27) |
-| 3. Orchestration with Prefect | ⏳ Next |
+| 3. Orchestration with Prefect | ✅ Done (2026-10-27); old 09:00 job retires after 2 scheduled successes |
+| 4. JPL CAD as a second source | ⏳ Next |
 
 Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 → 12 → 13.
 
@@ -198,3 +199,16 @@ Order: 0 → 1 → 2 → 3 → 4 → 5 → 7 → 8 → 9 → 6 → 10 → 11 →
 - README, `docs/api.md`, `scheduler/README.md` updated (full README rewrite in Phase 13).
 - **Follow-up (user's decision, 2026-10-27): Asteroid Watch moved to port 8010** everywhere (CLI default `DEFAULT_PORT`, launchd agent, Makefile, docs, README; a test keeps the agent and the CLI in sync). Port 8000 stays with the Remembrance server.
 - Tests: `make test` **155 passed** (36 new API tests: validation before DB access, 503s, 405/404, headers, value conversion, strict models, SQL stays parameterised, formula-safe exports, static boundaries, local `/docs`, Swagger hashes); `make api-test` **23 passed**; `make parity-test` **104 passed**.
+
+## v2 Phase 3: Orchestration with Prefect (2026-10-27) — how it works: `docs/orchestration.md`
+- **Steps** (`pipeline/steps.py`): the pipeline as plain functions (wait for network, check database, start run, extract, transform, load, quality, orbital lookups, finish run), each with its own DB connection. `run_pipeline.run()` (`asteroid-watch run`) now calls them; one shared NeoWs client still counts every request. Live check: run 23 identical to runs 21/22 (51 → 49 records, 0 inserted, 2 calls, 8/8).
+- **Prefect 3.9.0 flow** `neows-daily` (`flows/daily.py`): every step is a task (no caching, results not persisted). Retries: extract 3× (1, 5, 15 min), load 2×, quality 2×, orbits 1×, start/finish run 2–3×; the **flow** retries 6× every 30 min.
+- **The user's fixes for the Phase 0 failures:** network wait (TCP check of api.nasa.gov:443 every 5 min, up to 2 h, wall clock, never past the scheduled day); MySQL down → JSON line in `logs/failed_attempts.log` + flow retry 30 min later (last ≈ 22:00); retries after midnight stop (`TooLate`). Late runs after sleep/shutdown run on wake; backlog duplicates stop at "already ran?" (a daily success < 6 h old). `asteroid-watch status` shows the next Prefect run and recent failed attempts.
+- **Deployment** `neows-daily/daily-19-ist`: `Cron("0 19 * * *", timezone="Asia/Kolkata")`, served by `flows/serve.py`. Local Prefect server on 127.0.0.1:4200, SQLite in `.prefect/` (gitignored), analytics off; settings in `[tool.prefect]` (pyproject.toml). Scheduler created runs for 27, 28, 29 Oct 19:00 IST.
+- **Bug found and fixed:** Prefect 3.9's scheduler failed on SQLAlchemy 2.1 ("Can't evaluate bulk DML statement"), so no scheduled runs were created → SQLAlchemy pinned to 2.0.x (2.0.55). Prefect also pins FastAPI < 0.151 (now 0.150). Re-checked on both: 172 offline tests, 23 integration, 104 parity (still byte-identical), `alembic check` clean.
+- **Real runs through Prefect:** run 24 (`daily`, 52 s, 102 API calls, 100 new orbits: 1,078 → 1,178, 8/8 checks); a default run right after was **skipped** by the guard; run 25 and run 26 forced (guard off, no orbits) after code changes. All 5 flow runs Completed. Logs reach `logs/pipeline.log` (first run didn't: `serve()` runs each flow in a new process, so the file handler is now attached inside the flow).
+- **Secrets:** Prefect's database files (5.6 MB) scanned for the API key and both DB passwords after real runs: none found.
+- **Memory (measured):** Prefect server 134 MB, worker 100 MB (estimate was 500–700 MB). Disk: venv +129 MB (Prefect), `.prefect/` 6.5 MB.
+- **launchd:** `scheduler/com.asteroidwatch.prefect-server.plist` and `…prefect-worker.plist` (KeepAlive; launchd only keeps them alive, Prefect holds the schedule); `make prefect-install | prefect-status | prefect-uninstall`, `make prefect-server | prefect-worker | flow-run-now`. **Not installed: the user installs them.** The old 09:00 job stays until two scheduled Prefect successes; then `make schedule-uninstall` (by the user).
+- **Checkpoint:** Prefect UI screenshot `docs/screenshots/08_prefect_deployment.jpg` (deployment "At 07:00 PM every day", next run 27 Oct 19:00, 5 completed runs). The UI loaded nothing from other hosts.
+- Tests: `make test` **172 passed** (16 new: network wait with a fake clock incl. the Mac sleeping past the deadline, MySQL-down log without secrets, manual-run order, api_calls + redaction on failure; the flow on Prefect's test server: task order, skip guard, failure → run marked failed, MySQL down → no run row, `TooLate`, retry settings, 19:00 IST schedule). `make api-test` 23, `make parity-test` 104.

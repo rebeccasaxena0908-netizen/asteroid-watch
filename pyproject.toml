@@ -15,12 +15,13 @@ dependencies = [
     "requests>=2.32,<3",
     "python-dotenv>=1.0,<2",
     "PyMySQL>=1.1,<2",
-    "SQLAlchemy>=2.0,<2.2",
+    "SQLAlchemy>=2.0,<2.1",  # 2.1 breaks Prefect 3.9's scheduler (bulk insert of scheduled runs)
     "alembic>=1.13,<2",
     "typer>=0.12,<1",
     "fastapi>=0.115,<1",
     "uvicorn>=0.30,<1",
     "openpyxl>=3.1,<4",
+    "prefect>=3.9,<4",
 ]
 
 [project.scripts]
@@ -37,7 +38,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["pipeline", "scripts", "api", "api.routes"]
+packages = ["pipeline", "scripts", "api", "api.routes", "flows"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -54,11 +55,34 @@ extend-exclude = ["dashboard/assets/vendor"]
 select = ["E", "W", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pipeline", "scripts", "api"]
+known-first-party = ["pipeline", "scripts", "api", "flows"]
 
 [tool.mypy]
 # Non-strict to start: check what is annotated, don't require annotations everywhere.
 python_version = "3.12"
-files = ["pipeline", "tests", "scripts", "migrations", "api"]
+files = ["pipeline", "tests", "scripts", "migrations", "api", "flows"]
 ignore_missing_imports = true
 warn_unused_ignores = true
+
+[tool.prefect]
+# Prefect reads these when run from this folder (CLI, server, worker). See docs/orchestration.md.
+home = ".prefect"                       # Prefect's SQLite database and files stay in the project (gitignored)
+
+[tool.prefect.api]
+url = "http://127.0.0.1:4200/api"       # the local Prefect server
+
+[tool.prefect.server]
+analytics_enabled = false               # no anonymous usage data sent to Prefect
+
+[tool.prefect.server.api]
+host = "127.0.0.1"
+port = 4200
+
+[tool.prefect.logging]
+extra_loggers = "pipeline"              # show the pipeline's own log lines in the Prefect UI
+
+[tool.prefect.logging.to_api]
+when_missing_flow = "ignore"            # outside a flow run (manual runs, tests) just skip the UI
+
+[tool.prefect.results]
+persist_by_default = false              # don't write task results (raw NASA data) to disk

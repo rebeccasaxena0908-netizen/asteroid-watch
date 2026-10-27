@@ -65,3 +65,35 @@ make api-uninstall    # stop and remove
 
 Logs: `logs/api.out.log` and `logs/api.err.log`. Port 8010 must be free: if another program
 already uses it, the server can't start (see `logs/api.err.log`).
+
+---
+
+# Daily pipeline with Prefect (v2, replaces the 09:00 job above)
+
+Two launchd agents keep Prefect running (see `docs/orchestration.md`):
+
+| Agent | Runs | Logs |
+|---|---|---|
+| `com.asteroidwatch.prefect-server` | `prefect server start`: schedules, run history, UI at http://127.0.0.1:4200 | `logs/prefect-server.*.log` |
+| `com.asteroidwatch.prefect-worker` | `python -m flows.serve`: registers the 19:00 IST deployment and runs the flows | `logs/prefect-worker.*.log`, `logs/pipeline.log` |
+
+```bash
+make prefect-install      # install and start both
+make prefect-status       # both should say: state = running
+make prefect-uninstall    # stop and remove both
+```
+
+launchd only keeps these processes alive. The schedule (cron `0 19 * * *`, Asia/Kolkata) lives
+in Prefect. If the Mac is asleep or off at 19:00, the run starts as soon as it's awake again.
+
+## Retiring the old 09:00 job
+
+Keep `com.asteroidwatch.pipeline` until the Prefect flow has succeeded **on its own schedule
+twice** (two 19:00 runs with status success in `asteroid-watch status` or the Prefect UI). Then:
+
+```bash
+make schedule-uninstall
+```
+
+Until then both run each day. That's harmless: loads are idempotent, and the runs are 10 hours
+apart, more than the flow's 6-hour "already ran" window.

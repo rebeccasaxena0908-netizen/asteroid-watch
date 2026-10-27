@@ -13,15 +13,13 @@ asteroid and orbital counts are written to the log.
 import argparse
 import logging
 import sys
-from datetime import date, timedelta
+from datetime import date
 from logging.handlers import RotatingFileHandler
 
-from pipeline import quality
-from pipeline.config import PROJECT_ROOT, load_settings
-from pipeline.db import connect
-from pipeline.extract import NeoWsClient, extract_feed, extract_lookups
-from pipeline.load import asteroids_needing_orbits, load_feed_rows, load_known_aliases, load_orbital_rows
-from pipeline.transform import transform_feeds, transform_orbital
+from pipeline import quality, steps
+from pipeline.config import PROJECT_ROOT
+from pipeline.extract import extract_feed
+from pipeline.transform import transform_feeds
 
 log = logging.getLogger("pipeline")
 LOG_FILE = PROJECT_ROOT / "logs" / "pipeline.log"
@@ -38,41 +36,13 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def start_run(conn, run_type: str, start: date, end: date) -> int:
-    with conn.cursor() as cur:
-        cur.execute("INSERT INTO pipeline_runs (run_type, source, status, date_range_start, date_range_end) "
-                    "VALUES (%s, 'neows', 'running', %s, %s)", (run_type, start, end))
-        run_id = cur.lastrowid
-    conn.commit()
-    return run_id
-
-
-def finish_run(conn, run_id: int, status: str, stats: dict, error: str | None = None) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
-            "UPDATE pipeline_runs SET finished_at = NOW(), status = %s, api_calls = %s, "
-            "records_extracted = %s, records_after_dedupe = %s, rows_inserted = %s, rows_updated = %s, "
-            "quality_failures = %s, "
-            "error_message = %s WHERE run_id = %s",
-            (status, stats.get("api_calls", 0), stats.get("records_extracted", 0), stats.get("records_after_dedupe"),
-             stats.get("rows_inserted", 0), stats.get("rows_updated", 0),
-             stats.get("quality_failures", 0), error, run_id))
-    conn.commit()
-
-
-def log_checks(checks) -> None:
-    for c in checks:
-        (log.info if c.passed else log.warning)("Quality %s %s: %s",
-                                                "PASS" if c.passed else "FAIL", c.check_name, c.details)
-
-
 def run(args, settings=None, today: date | None = None) -> dict:
-    settings = settings or load_settings()
-    if not settings.has_real_api_key:
-        raise SystemExit("NASA_API_KEY is not set in .env")
-    today = today or date.today()
-    start, end = today - timedelta(days=args.backfill_days), today + timedelta(days=args.forward_days)
-    client = NeoWsClient(settings.nasa_api_key)
+    """A manual run: the steps in pipeline/steps.py, one after another.
+
+    (The scheduled daily run is the Prefect flow in flows/daily.py, built from the same steps.)
+    """
+    client = steps.nasa_client(settings)
+    start, end = steps.date_window(args.backfill_days, args.forward_days, today)
     stats: dict = {}
 
     if args.dry_run:
@@ -84,56 +54,50 @@ def run(args, settings=None, today: date | None = None) -> dict:
                  "duplicates_removed": clean.duplicates_removed,
                  "same_object_removed": clean.same_object_removed,
                  "same_object_remapped": clean.same_object_remapped, "rejected": len(clean.rejected)}
-        log_checks(quality.run_checks(extracted, clean))
+        for c in quality.run_checks(extracted, clean):
+            (log.info if c.passed else log.warning)("Quality %s %s: %s",
+                                                    "PASS" if c.passed else "FAIL", c.check_name, c.details)
         log.info("Dry run result: %s", stats)
         return stats
 
-    conn = connect(settings)
-    run_id = start_run(conn, args.run_type, start, end)
-    log.info("Run %d (%s) started: %s to %s", run_id, args.run_type, start, end)
+    steps.check_database(run_type=args.run_type, start=str(start), end=str(end))
+    run_id = steps.start_run(args.run_type, start, end)
     try:
-        # Extract (bronze) -> transform (silver) -> load
-        extracted = extract_feed(client, start, end)
-        clean = transform_feeds(extracted.payloads, load_known_aliases(conn))
+        # Extract (bronze) -> transform (silver) -> load (gold) -> quality checks -> orbits
+        extracted = steps.extract(client, start, end)
+        clean = steps.transform(extracted)
         stats["records_extracted"] = clean.records_seen
         stats["records_after_dedupe"] = len(clean.approaches)
-        log.info("Transformed %d records into %d asteroids and %d approaches "
-                 "(%d duplicates removed, %d old-id copies removed, %d old-id approaches moved "
-                 "to numbered ids, %d rejected)",
-                 clean.records_seen, len(clean.asteroids), len(clean.approaches), clean.duplicates_removed,
-                 clean.same_object_removed, clean.same_object_remapped, len(clean.rejected))
-        for reason in clean.rejected[:10]:
-            log.warning("Rejected: %s", reason)
-
-        counts = load_feed_rows(conn, clean.asteroids, clean.approaches, clean.new_aliases)
-        stats["rows_inserted"] = counts["close_approaches"].inserted
-        stats["rows_updated"] = counts["close_approaches"].updated
-
-        with conn.cursor() as cur:
-            checks = quality.run_checks(extracted, clean, cur)
-        log_checks(checks)
-        stats["quality_failures"] = quality.save_results(conn, run_id, checks)
-
+        stats |= steps.load(clean)
+        stats["quality_failures"] = steps.check_quality(run_id, extracted, clean)
         # Orbital data: only for asteroids missing it or with stale data, capped per run
-        if args.orbital_limit > 0:
-            neo_ids = asteroids_needing_orbits(conn, args.orbital_limit)
-            log.info("Fetching orbital data for %d asteroids", len(neo_ids))
-            rows = [r for r in map(transform_orbital, extract_lookups(client, neo_ids)) if r]
-            load_orbital_rows(conn, rows)
+        steps.orbital_lookups(client, args.orbital_limit)
 
         stats["api_calls"] = client.api_calls
-        finish_run(conn, run_id, "success", stats)
+        steps.finish_run(run_id, "success", stats)
         log.info("Run %d finished: %s", run_id, stats)
         return stats
     except Exception as exc:
         stats["api_calls"] = client.api_calls
         error = client.redact(f"{type(exc).__name__}: {exc}")[:1000]
-        conn.rollback()
-        finish_run(conn, run_id, "failed", stats, error)
+        steps.finish_run(run_id, "failed", stats, error)
         log.error("Run %d failed: %s", run_id, error)
         raise
-    finally:
-        conn.close()
+
+
+def log_to_file() -> None:
+    """Send the pipeline's log lines to logs/pipeline.log (rotated at 1 MB, 5 old files kept).
+
+    Safe to call more than once. Used by the Prefect flow, whose runs execute in their own process.
+    """
+    pipeline_log = logging.getLogger("pipeline")
+    if any(getattr(h, "baseFilename", None) == str(LOG_FILE) for h in pipeline_log.handlers):
+        return
+    LOG_FILE.parent.mkdir(exist_ok=True)
+    handler = RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=5)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    pipeline_log.setLevel(logging.INFO)
+    pipeline_log.addHandler(handler)
 
 
 def setup_logging() -> None:

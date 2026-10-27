@@ -34,9 +34,14 @@ College Data Engineering project (5th sem BCA). Keep the code simple enough to e
 ## Commands
 `make install | requirements | lint | hooks | scan-secrets | setup-db | migrate | check-db | status | test | api-test | extract | run | backfill | crosscheck | serve | parity-test | legacy-deploy | legacy-undeploy`
 `make api-install | api-uninstall | api-status | api-restart` (launchd keeps the API running; the user installs it)
+`make prefect-server | prefect-worker | flow-run-now | prefect-install | prefect-uninstall | prefect-status` (Prefect: daily 19:00 IST; the user installs the agents)
 `make schedule-install | schedule-uninstall | schedule-status | schedule-run-now` (the user installs the schedule)
 
 ## Design notes
+- Orchestration (v2): Prefect 3.9 flow flows/daily.py, deployment neows-daily/daily-19-ist (cron 0 19 * * *, Asia/Kolkata) served by flows/serve.py; local server :4200, SQLite in .prefect/ (settings in [tool.prefect], pyproject). Steps live in pipeline/steps.py and are shared with `asteroid-watch run`. Network wait (5 min checks, ≤2 h), MySQL down → logs/failed_attempts.log + flow retries (6×30 min), skip if a daily success < 6 h old.
+- SQLAlchemy is pinned <2.1: 2.1 breaks Prefect 3.9's scheduler (no runs created). Prefect also pins fastapi<0.151.
+- The old v1 09:00 launchd job stays until two scheduled Prefect runs succeed; the user removes it (`make schedule-uninstall`).
+- Prefect's `serve()` runs each flow run in a new process: per-run setup (log file handler) must happen inside the flow.
 - Asteroid Watch uses port 8010 (user's decision): port 8000 belongs to the user's other project (~/Desktop/Remembrance backend, uvicorn). Never touch it. For throwaway test servers use another port (e.g. 8011) so an installed API agent on 8010 isn't disturbed.
 - FastAPI value types mirror PHP's PDO: DECIMAL→string, DATE/DATETIME→'YYYY-MM-DD[ HH:MM:SS]', BOOLEAN→true/false (api/db.py). Response models are strict.
 - Test client: httpx2 (Starlette deprecates httpx). /docs uses vendored Swagger UI 5.33.2 (api/static/swagger-ui, hashes in its README).

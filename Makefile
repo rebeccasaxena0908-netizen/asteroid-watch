@@ -6,9 +6,11 @@ AGENT   := com.asteroidwatch.pipeline
 AGENT_PLIST := $(HOME)/Library/LaunchAgents/$(AGENT).plist
 API_AGENT := com.asteroidwatch.api
 API_PLIST := $(HOME)/Library/LaunchAgents/$(API_AGENT).plist
+PREFECT_AGENTS := com.asteroidwatch.prefect-server com.asteroidwatch.prefect-worker
 
 .PHONY: help install requirements lint hooks scan-secrets setup-db migrate check-db status test api-test extract run quick-run backfill crosscheck serve parity-test legacy-deploy legacy-undeploy \
         api-install api-uninstall api-status api-restart \
+        prefect-server prefect-worker flow-run-now prefect-install prefect-uninstall prefect-status \
         schedule-install schedule-uninstall schedule-status schedule-run-now
 
 help:
@@ -33,8 +35,12 @@ help:
 	@echo "make api-install / api-uninstall / api-status / api-restart"
 	@echo "                keep the server running with launchd (see scheduler/README.md)"
 	@echo "make legacy-deploy / legacy-undeploy   the retired PHP API on XAMPP (for parity tests)"
+	@echo "make prefect-server / prefect-worker   run Prefect in the terminal (UI: http://127.0.0.1:4200)"
+	@echo "make flow-run-now   run the daily Prefect flow now (needs the server and worker)"
+	@echo "make prefect-install / prefect-uninstall / prefect-status"
+	@echo "                keep the Prefect server and worker running with launchd (daily 19:00 IST)"
 	@echo "make schedule-install / schedule-uninstall / schedule-status / schedule-run-now"
-	@echo "                daily 09:00 launchd job (see scheduler/README.md)"
+	@echo "                the old v1 daily 09:00 launchd job (replaced by Prefect; see scheduler/README.md)"
 
 install:
 	python3 -m venv .venv
@@ -129,7 +135,34 @@ api-restart:
 	launchctl kickstart -k gui/$$(id -u)/$(API_AGENT)
 	@echo "Restarted. Logs: logs/api.err.log"
 
-# Daily launchd job. See scheduler/README.md.
+# Prefect (v2): the server keeps the 19:00 IST schedule and run history; the worker runs the flows.
+prefect-server:
+	.venv/bin/prefect server start
+
+prefect-worker:
+	$(PYTHON) -m flows.serve
+
+flow-run-now:
+	.venv/bin/prefect deployment run 'neows-daily/daily-19-ist' --watch
+
+prefect-install:
+	mkdir -p logs $(HOME)/Library/LaunchAgents
+	for a in $(PREFECT_AGENTS); do \
+		sed "s|__PROJECT_DIR__|$(CURDIR)|g" scheduler/$$a.plist > $(HOME)/Library/LaunchAgents/$$a.plist && \
+		plutil -lint $(HOME)/Library/LaunchAgents/$$a.plist && \
+		launchctl bootstrap gui/$$(id -u) $(HOME)/Library/LaunchAgents/$$a.plist || exit 1; \
+	done
+	@echo "Installed. UI: http://127.0.0.1:4200  Check with: make prefect-status"
+
+prefect-uninstall:
+	-for a in $(PREFECT_AGENTS); do launchctl bootout gui/$$(id -u)/$$a; rm -f $(HOME)/Library/LaunchAgents/$$a.plist; done
+	@echo "Uninstalled."
+
+prefect-status:
+	@for a in $(PREFECT_AGENTS); do echo "$$a:"; \
+		launchctl print gui/$$(id -u)/$$a 2>/dev/null | grep -E "state =|pid =|last exit code" || echo "  not installed"; done
+
+# The old v1 daily launchd job (09:00). Replaced by Prefect; see scheduler/README.md.
 schedule-install:
 	mkdir -p logs $(HOME)/Library/LaunchAgents
 	sed "s|__PROJECT_DIR__|$(CURDIR)|g" scheduler/$(AGENT).plist > $(AGENT_PLIST)
